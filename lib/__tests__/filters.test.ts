@@ -5,6 +5,7 @@ import {
   buildParticipants,
   filterParticipants,
   computeFilterStats,
+  getUsernameSuggestions,
 } from "@/lib/giveaway/filters";
 import { DEFAULT_SETTINGS } from "@/lib/giveaway/store";
 import type { InstagramComment } from "@/types/giveaway";
@@ -94,6 +95,28 @@ describe("filterParticipants", () => {
     });
     expect(results[0].eligible).toBe(false);
     expect(results[0].reasons).toContain("Excluded username");
+  });
+
+  it("only allows usernames on the allow list when it's non-empty", () => {
+    const participants = buildParticipants([
+      comment({ username: "john" }),
+      comment({ username: "maria" }),
+    ]);
+    const results = filterParticipants(participants, {
+      ...DEFAULT_SETTINGS,
+      includedUsernames: ["Maria"],
+    });
+    const john = results.find((r) => r.normalizedUsername === "john");
+    const maria = results.find((r) => r.normalizedUsername === "maria");
+    expect(john?.eligible).toBe(false);
+    expect(john?.reasons).toContain("Not in allowed list");
+    expect(maria?.eligible).toBe(true);
+  });
+
+  it("ignores the allow list when it's empty", () => {
+    const participants = buildParticipants([comment({ username: "john" })]);
+    const results = filterParticipants(participants, DEFAULT_SETTINGS);
+    expect(results[0].eligible).toBe(true);
   });
 
   it("requires keyword when enabled", () => {
@@ -188,5 +211,28 @@ describe("computeFilterStats", () => {
     expect(stats.uniqueParticipants).toBe(2);
     expect(stats.eligibleParticipants).toBe(1);
     expect(stats.excludedParticipants).toBe(1);
+  });
+});
+
+describe("getUsernameSuggestions", () => {
+  it("deduplicates by normalized username, keeping the first-seen casing", () => {
+    const suggestions = getUsernameSuggestions([
+      comment({ username: "Maria" }),
+      comment({ username: "Alex" }),
+      comment({ username: "MARIA" }),
+      comment({ username: "  alex  " }),
+    ]);
+    expect(suggestions).toHaveLength(2);
+    expect(suggestions).toContain("Maria");
+    expect(suggestions).toContain("Alex");
+  });
+
+  it("sorts the result alphabetically", () => {
+    const suggestions = getUsernameSuggestions([
+      comment({ username: "zara" }),
+      comment({ username: "adam" }),
+      comment({ username: "mike" }),
+    ]);
+    expect(suggestions).toEqual(["adam", "mike", "zara"]);
   });
 });

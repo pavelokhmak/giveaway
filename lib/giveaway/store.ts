@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: GiveawaySettings = {
   minimumMentions: 1,
   excludePreviousWinners: true,
   excludedUsernames: [],
+  includedUsernames: [],
   minimumCommentLength: undefined,
 };
 

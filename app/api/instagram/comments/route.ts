@@ -4,11 +4,9 @@ import { z } from "zod";
 import { parseInstagramUrl } from "@/lib/validations/instagram";
 import { getInstagramProvider } from "@/lib/instagram/get-provider";
 import { InstagramProviderError } from "@/lib/instagram/provider";
-import { DemoInstagramProvider } from "@/lib/instagram/demo-provider";
 
 const requestSchema = z.object({
   url: z.string(),
-  demo: z.boolean().optional(),
 });
 
 export async function POST(request: NextRequest) {
@@ -28,14 +26,6 @@ export async function POST(request: NextRequest) {
       { error: "Відсутнє або недійсне поле `url`." },
       { status: 400 },
     );
-  }
-
-  // "Try Demo" always uses the demo provider, even if real Meta
-  // credentials happen to be configured — it never touches Instagram.
-  if (parsedBody.data.demo) {
-    const provider = new DemoInstagramProvider();
-    const comments = await provider.getComments(parsedBody.data.url);
-    return NextResponse.json({ provider: provider.name, comments });
   }
 
   const parsedUrl = parseInstagramUrl(parsedBody.data.url);

@@ -1,20 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { Search, Users } from "lucide-react";
+import { Check, Search, Users } from "lucide-react";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Tabs,
   TabsList,
@@ -23,7 +15,7 @@ import {
 import { reasonLabelUk } from "@/lib/giveaway/filters";
 import type { EligibilityResult } from "@/types/giveaway";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 20;
 
 interface ParticipantListProps {
   results: EligibilityResult[];
@@ -56,82 +48,68 @@ export function ParticipantList({ results }: ParticipantListProps) {
   const pageItems = filtered.slice(page * PAGE_SIZE, page * PAGE_SIZE + PAGE_SIZE);
 
   return (
-    <Card>
-      <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <Card className="gap-4 py-4">
+      <CardHeader className="flex flex-col gap-2 px-4">
         <CardTitle className="flex items-center gap-2 text-base">
           <Users className="size-4 text-primary" />
           Учасники
         </CardTitle>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Пошук за нікнеймом…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="h-8 w-full pl-8 sm:w-48"
-            />
-          </div>
-          <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterMode)}>
-            <TabsList>
-              <TabsTrigger value="all">Усі</TabsTrigger>
-              <TabsTrigger value="eligible">Допущені</TabsTrigger>
-              <TabsTrigger value="excluded">Виключені</TabsTrigger>
-            </TabsList>
-          </Tabs>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Пошук за нікнеймом…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="h-9 w-full pl-8"
+          />
         </div>
+        <Tabs value={filter} onValueChange={(v) => setFilter(v as FilterMode)}>
+          <TabsList className="w-full">
+            <TabsTrigger value="all" className="flex-1">Усі</TabsTrigger>
+            <TabsTrigger value="eligible" className="flex-1">Проходять</TabsTrigger>
+            <TabsTrigger value="excluded" className="flex-1">Не проходять</TabsTrigger>
+          </TabsList>
+        </Tabs>
       </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Нікнейм</TableHead>
-                <TableHead>Коментар</TableHead>
-                <TableHead className="text-right">Статус</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {pageItems.length === 0 && (
-                <TableRow>
-                  <TableCell colSpan={3} className="py-8 text-center text-sm text-muted-foreground">
-                    Немає учасників за цими фільтрами.
-                  </TableCell>
-                </TableRow>
-              )}
-              {pageItems.map((r, index) => (
-                <TableRow
-                  key={`${page}-${index}-${r.normalizedUsername}-${r.participant.comments[0]?.id}`}
+      <CardContent className="px-4">
+        <div className="divide-y rounded-lg border">
+          {pageItems.length === 0 && (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Немає учасників за цими фільтрами.
+            </p>
+          )}
+          {pageItems.map((r, index) => (
+            <div
+              key={`${page}-${index}-${r.normalizedUsername}-${r.participant.comments[0]?.id}`}
+              className="flex items-start justify-between gap-3 px-3 py-2.5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">@{r.normalizedUsername}</p>
+                <p className="truncate text-xs text-muted-foreground">
+                  {r.participant.comments[0]?.text}
+                </p>
+              </div>
+              {r.eligible ? (
+                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <Check className="size-3.5" />
+                </span>
+              ) : (
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 bg-destructive/10 text-[11px] text-destructive"
+                  title={r.reasons.map(reasonLabelUk).join(", ")}
                 >
-                  <TableCell className="font-medium">@{r.normalizedUsername}</TableCell>
-                  <TableCell className="max-w-[280px] truncate text-muted-foreground">
-                    {r.participant.comments[0]?.text}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {r.eligible ? (
-                      <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                        Допущено
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="secondary"
-                        className="bg-destructive/10 text-destructive"
-                        title={r.reasons.map(reasonLabelUk).join(", ")}
-                      >
-                        {r.reasons[0] ? reasonLabelUk(r.reasons[0]) : "Виключено"}
-                      </Badge>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  {r.reasons[0] ? reasonLabelUk(r.reasons[0]) : "Не проходить"}
+                </Badge>
+              )}
+            </div>
+          ))}
         </div>
 
         {pageCount > 1 && (
           <div className="mt-3 flex items-center justify-between text-sm text-muted-foreground">
-            <span>
-              Сторінка {page + 1} з {pageCount} · {filtered.length} результатів
+            <span className="text-xs">
+              {page + 1} / {pageCount} · {filtered.length}
             </span>
             <div className="flex gap-2">
               <Button

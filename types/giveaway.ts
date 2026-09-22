@@ -35,7 +35,13 @@ export interface GiveawaySettings {
   requireMention: boolean;
   minimumMentions: number;
   excludePreviousWinners: boolean;
+  /** Usernames that can never win ("cannot win" list). */
   excludedUsernames: string[];
+  /**
+   * If non-empty, only these usernames are eligible ("can win" allow
+   * list) — everyone else is excluded regardless of other settings.
+   */
+  includedUsernames: string[];
   minimumCommentLength?: number;
 }
 
@@ -44,6 +50,7 @@ export type ExclusionReason =
   | "Mention required"
   | "Not enough mentions"
   | "Excluded username"
+  | "Not in allowed list"
   | "Previous winner"
   | "Comment too short";
 

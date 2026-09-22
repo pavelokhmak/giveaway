@@ -2,22 +2,44 @@
 
 Paste an Instagram post link, import its comments, set fair entry rules, and
 randomly pick winners — with a cryptographically secure randomizer and a
-polished reveal animation. The UI is in **Ukrainian** (this README stays in
-English for contributors).
+polished reveal animation. The UI is in **Ukrainian**, built mobile-first
+(this README stays in English for contributors).
 
 This is a deliberately simple, **database-free MVP**. Everything lives in
 React/Zustand state for the current browser session. Refresh the page and
 the giveaway resets — that's expected, not a bug.
 
+## Pages
+
+- `/` — paste an Instagram post/reel URL and import its comments (no
+  Instagram API access required; see **Demo fallback** below).
+- `/giveaway` — the organizer's main screen: two numbers (comment count,
+  how many pass the current rules) and a searchable/filterable participant
+  list. A settings icon in the header opens `/giveaway/settings`; a sticky
+  bottom button starts the draw.
+- `/giveaway/settings` — a separate screen for winner/backup counts, entry
+  mode, keyword/mention rules, and the "can win" / "cannot win" username
+  lists. Nothing here is shown anywhere public — it's only visible to
+  whoever has the phone.
+- Draw, reveal, and results happen on `/giveaway` too, replacing the
+  participant list for those phases.
+
 ## Features
 
-- Paste an Instagram post/reel URL and import its comments, or click
-  **Try Demo** (Спробувати демо) to instantly load 500 realistic fake
-  comments (mixed languages, emoji, duplicate usernames, with/without
-  mentions and keywords) — no Instagram API required.
-- Configurable entry rules: winner/backup counts, required keyword
-  (contains/exact), required mentions with a minimum count, excluded
-  usernames, excluding previous session winners, minimum comment length.
+- Paste an Instagram post/reel URL and import its comments. If
+  `INSTAGRAM_ACCESS_TOKEN` isn't configured, this silently falls back to
+  realistic demo data (see **Demo fallback**) — there's no visible "demo
+  mode" toggle in the UI.
+- Configurable entry rules: winner/backup counts (including a **custom**
+  value via the "Інше" option — typing your own number always works, not
+  just the presets), required keyword (contains/exact), required mentions
+  with a minimum count, excluding previous session winners, minimum
+  comment length.
+- **"Можуть виграти" / "Не можуть виграти"** (can win / cannot win)
+  username lists with autocomplete: type a few letters and pick from
+  usernames seen in the imported comments, or add any name freeform. The
+  "can win" list is a strict allow-list — if it's non-empty, only those
+  people are eligible. Both lists live only in `/giveaway/settings`.
 - Three entry modes (`EntryMode` in `types/giveaway.ts`), picked in
   Налаштування розіграшу → Голоси:
   - **Один голос на людину** ("unique") — one entry per person.
@@ -31,8 +53,8 @@ the giveaway resets — that's expected, not a bug.
   randomizer still caps them at **one prize**: the shuffle is weighted by
   ticket count, but a person's remaining tickets are skipped once they've
   already won (`drawWinners` in `lib/giveaway/random.ts`).
-- Live stats and a searchable, filterable, paginated participant table
-  showing exactly why each entry is eligible or excluded.
+- A searchable, filterable, paginated participant list showing exactly why
+  each entry does or doesn't pass the current rules.
 - Cryptographically secure winner selection (`crypto.getRandomValues` with
   rejection sampling + an unbiased Fisher–Yates shuffle) — never
   `Math.random()`.
@@ -42,7 +64,8 @@ the giveaway resets — that's expected, not a bug.
 - Reject a winner post-draw and the next backup is automatically promoted.
 - Export participants or winners as CSV, copy a results summary to the
   clipboard.
-- Light/dark theme, responsive down to mobile.
+- Light/dark theme, built mobile-first (this is meant to be used on a
+  phone, not a desktop admin panel).
 
 ## Getting started
 
@@ -51,17 +74,18 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000), click **Try Demo**,
-and run through the flow — no configuration needed.
+Open [http://localhost:3000](http://localhost:3000) (ideally in a phone-
+width viewport or on an actual phone) and paste any Instagram post/reel
+URL — no configuration needed, see **Demo fallback**.
 
-## Demo Mode
+## Demo fallback
 
 The app works completely without any Instagram API access. If
 `INSTAGRAM_ACCESS_TOKEN` isn't set (the default), every request
-automatically falls back to a **Demo Provider** that generates 500
-deterministic fake comments. The app also shows a **DEMO MODE** badge
-whenever demo data is active, and the **Try Demo** button on the landing
-page always uses demo data regardless of what's configured server-side.
+automatically and silently falls back to a **Demo Provider** that
+generates 500 deterministic fake comments — there's no "Try Demo" button
+or "demo mode" badge in the UI; it just works when you paste a
+validly-shaped Instagram URL.
 
 ## Environment variables
 
@@ -99,7 +123,7 @@ has no endpoint to look up an arbitrary public post by URL. `MetaInstagramProvid
 comments once a media ID is resolved; mapping a pasted URL to that media ID
 depends on which account you connect, so that lookup is left as a clearly
 marked extension point (`resolveMediaId`). Without credentials, or if this
-throws, the app simply uses Demo Mode — nothing breaks.
+throws, the app simply falls back to demo data — nothing breaks.
 
 ## Production deployment
 
@@ -139,10 +163,11 @@ CSV export.
 ```
 app/
   page.tsx                     Landing page
-  giveaway/page.tsx            Settings → draw → results flow
+  giveaway/page.tsx            Participant list → draw → results
+  giveaway/settings/page.tsx   Organizer-only settings screen
   api/instagram/comments/      Server route: Meta or Demo provider
 components/
-  giveaway/                    Giveaway-specific UI
+  giveaway/                    Giveaway-specific UI (incl. username-picker.tsx)
   ui/                          shadcn/ui primitives
 lib/
   instagram/                   Provider abstraction (Meta + Demo)

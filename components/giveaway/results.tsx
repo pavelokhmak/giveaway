@@ -95,7 +95,7 @@ export function Results({
       <GiveawayStats
         items={[
           { label: "Усього коментарів", value: stats.totalComments },
-          { label: "Допущено до розіграшу", value: stats.eligibleParticipants },
+          { label: "Пройшли за умовами", value: stats.eligibleParticipants },
           { label: "Переможців", value: winners.length },
           { label: "Запасних", value: backups.length },
         ]}

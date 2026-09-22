@@ -105,6 +105,9 @@ export function filterParticipants(
   const excludedSet = new Set(
     settings.excludedUsernames.map((u) => normalizeUsername(u)),
   );
+  const includedSet = new Set(
+    settings.includedUsernames.map((u) => normalizeUsername(u)),
+  );
   const previousWinnerSet = new Set(
     previousWinners.map((u) => normalizeUsername(u)),
   );
@@ -114,6 +117,10 @@ export function filterParticipants(
 
     if (excludedSet.has(participant.normalizedUsername)) {
       reasons.push("Excluded username");
+    }
+
+    if (includedSet.size > 0 && !includedSet.has(participant.normalizedUsername)) {
+      reasons.push("Not in allowed list");
     }
 
     if (
@@ -193,6 +200,22 @@ export function filterParticipants(
   });
 }
 
+/**
+ * Distinct usernames (normalized, deduplicated, alphabetically sorted)
+ * found in the imported comments — used to power the "can win" / "cannot
+ * win" autocomplete in settings.
+ */
+export function getUsernameSuggestions(comments: InstagramComment[]): string[] {
+  const seen = new Map<string, string>();
+  for (const comment of comments) {
+    const normalized = normalizeUsername(comment.username);
+    if (!seen.has(normalized)) {
+      seen.set(normalized, comment.username.trim());
+    }
+  }
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
+}
+
 export function computeFilterStats(
   totalComments: number,
   results: EligibilityResult[],
@@ -210,7 +233,8 @@ const REASON_LABELS_UK: Record<ExclusionReason, string> = {
   "Keyword missing": "Немає ключового слова",
   "Mention required": "Потрібна відмітка",
   "Not enough mentions": "Замало відміток",
-  "Excluded username": "У списку виключених",
+  "Excluded username": "У списку тих, хто не може виграти",
+  "Not in allowed list": "Немає у списку тих, хто може виграти",
   "Previous winner": "Вже переможець",
   "Comment too short": "Закороткий коментар",
 };

@@ -7,14 +7,11 @@ export interface FetchCommentsResponse {
 
 export class FetchCommentsError extends Error {}
 
-export async function fetchComments(
-  url: string,
-  options: { demo?: boolean } = {},
-): Promise<FetchCommentsResponse> {
+export async function fetchComments(url: string): Promise<FetchCommentsResponse> {
   const res = await fetch("/api/instagram/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url, demo: options.demo }),
+    body: JSON.stringify({ url }),
   });
 
   let body: { comments?: InstagramComment[]; provider?: "meta" | "demo"; error?: string };

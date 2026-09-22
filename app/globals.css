@@ -126,6 +126,10 @@
   }
   html {
     @apply font-sans;
+    /* Reserve space so the browser's scroll-into-view (e.g. when
+       focusing an input) doesn't tuck content behind a fixed bottom
+       action bar. */
+    scroll-padding-bottom: 6rem;
   }
 }
 
