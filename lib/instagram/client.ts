@@ -8,8 +8,30 @@ export interface FetchCommentsResponse {
 
 export class FetchCommentsError extends Error {}
 
+// Cloudflare Workers (and Instagram's own API) can occasionally hang
+// instead of erroring; give up after this long so the UI never shows an
+// infinite spinner.
+const REQUEST_TIMEOUT_MS = 30_000;
+
+async function fetchWithTimeout(input: string, init?: RequestInit): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw new FetchCommentsError(
+        "Запит зайняв надто багато часу. Перевірте з'єднання і спробуйте ще раз.",
+      );
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function postComments(payload: { mediaId: string } | { url: string }) {
-  const res = await fetch("/api/instagram/comments", {
+  const res = await fetchWithTimeout("/api/instagram/comments", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -44,7 +66,7 @@ export interface FetchMediaResponse {
 }
 
 export async function fetchRecentMedia(): Promise<InstagramMedia[]> {
-  const res = await fetch("/api/instagram/media");
+  const res = await fetchWithTimeout("/api/instagram/media");
 
   let body: { media?: InstagramMedia[]; error?: string };
   try {

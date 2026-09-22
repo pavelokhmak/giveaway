@@ -5,6 +5,10 @@ import { parseInstagramUrl } from "@/lib/validations/instagram";
 
 const GRAPH_BASE_URL = "https://graph.instagram.com/v23.0";
 const MEDIA_SEARCH_PAGE_LIMIT = 8;
+// Comments come in pages of 50; cap at 40 pages (~2000 comments, plenty
+// for any giveaway) so a pagination quirk (or a genuinely huge comment
+// count) can never hang the request indefinitely.
+const COMMENTS_PAGE_LIMIT = 40;
 
 interface MetaCommentNode {
   id: string;
@@ -99,11 +103,13 @@ export class MetaInstagramProvider implements InstagramProvider {
   async getCommentsByMediaId(mediaId: string): Promise<InstagramComment[]> {
     const comments: InstagramComment[] = [];
     let after: string | undefined;
+    let page = 0;
 
     do {
       const params = new URLSearchParams({
         fields: "id,text,username,timestamp",
         access_token: this.accessToken,
+        limit: "50",
       });
       if (after) params.set("after", after);
 
@@ -124,8 +130,12 @@ export class MetaInstagramProvider implements InstagramProvider {
         });
       }
 
-      after = body.paging?.cursors?.after;
-    } while (after);
+      const nextAfter = body.paging?.cursors?.after;
+      // Guard against a pagination quirk (the same/an unchanging cursor
+      // coming back) looping forever.
+      after = nextAfter && nextAfter !== after ? nextAfter : undefined;
+      page++;
+    } while (after && page < COMMENTS_PAGE_LIMIT);
 
     return comments;
   }

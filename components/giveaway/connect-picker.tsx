@@ -108,13 +108,15 @@ export function ConnectPicker() {
         </div>
       </header>
 
-      <main className="space-y-4 px-4 py-5">
+      <main className="py-3">
         {error && (
-          <Alert variant="destructive">
-            <AlertCircle className="size-4" />
-            <AlertTitle>Помилка</AlertTitle>
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
+          <div className="px-4 pb-4">
+            <Alert variant="destructive">
+              <AlertCircle className="size-4" />
+              <AlertTitle>Помилка</AlertTitle>
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          </div>
         )}
 
         {state === "loading" && (
@@ -125,39 +127,41 @@ export function ConnectPicker() {
         )}
 
         {state === "error" && (
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => {
-              setState("loading");
-              setError(null);
-              fetchRecentMedia()
-                .then((items) => {
-                  setMedia(items);
-                  setState("ready");
-                })
-                .catch((err) => {
-                  setError(
-                    err instanceof FetchCommentsError
-                      ? err.message
-                      : "Не вдалося завантажити ваші публікації.",
-                  );
-                  setState("error");
-                });
-            }}
-          >
-            Спробувати ще раз
-          </Button>
+          <div className="px-4">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => {
+                setState("loading");
+                setError(null);
+                fetchRecentMedia()
+                  .then((items) => {
+                    setMedia(items);
+                    setState("ready");
+                  })
+                  .catch((err) => {
+                    setError(
+                      err instanceof FetchCommentsError
+                        ? err.message
+                        : "Не вдалося завантажити ваші публікації.",
+                    );
+                    setState("error");
+                  });
+              }}
+            >
+              Спробувати ще раз
+            </Button>
+          </div>
         )}
 
         {state === "ready" && (
           <>
             {media.length === 0 && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
+              <p className="px-4 py-8 text-center text-sm text-muted-foreground">
                 У вас ще немає публікацій.
               </p>
             )}
-            <div className="grid grid-cols-3 gap-0.5 overflow-hidden rounded-lg">
+            <div className="grid grid-cols-3 gap-px bg-border">
               {media.map((item) => (
                 <button
                   key={item.id}
@@ -174,13 +178,8 @@ export function ConnectPicker() {
                       className="size-full object-cover transition-transform group-active:scale-95"
                     />
                   ) : (
-                    <div className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center">
+                    <div className="flex size-full items-center justify-center">
                       <ImageOff className="size-5 text-muted-foreground" />
-                      {item.caption && (
-                        <p className="line-clamp-2 text-[10px] text-muted-foreground">
-                          {item.caption}
-                        </p>
-                      )}
                     </div>
                   )}
 
@@ -196,7 +195,7 @@ export function ConnectPicker() {
         )}
 
         {state !== "loading" && (
-          <div className="pt-2">
+          <div className="px-4 pt-4">
             {!showManual ? (
               <button
                 type="button"
