@@ -13,18 +13,33 @@ const SCOPES = [
 
 export class InstagramOAuthError extends Error {}
 
-function requireEnv(name: "INSTAGRAM_APP_ID" | "INSTAGRAM_APP_SECRET"): string {
-  const value = process.env[name];
+// Instagram App IDs are public by design — the browser sends it in
+// plain sight as part of the OAuth authorize URL — so shipping a
+// fallback here is safe. This means the login button keeps working
+// even if a hosting platform's environment-variable mechanism doesn't
+// reliably persist a plain (non-secret) variable; INSTAGRAM_APP_ID can
+// still be overridden via env if you ever run a different app. The App
+// Secret is never given a fallback — it must always come from the
+// environment.
+const DEFAULT_APP_ID = "1571471064112664";
+
+function getAppId(): string {
+  const value = process.env.INSTAGRAM_APP_ID;
+  return value && value.trim().length > 0 ? value : DEFAULT_APP_ID;
+}
+
+function requireAppSecret(): string {
+  const value = process.env.INSTAGRAM_APP_SECRET;
   if (!value || value.trim().length === 0) {
     throw new InstagramOAuthError(
-      `${name} не налаштовано на сервері. Створіть застосунок у Meta for Developers і додайте його дані в .env.`,
+      "INSTAGRAM_APP_SECRET не налаштовано на сервері. Додайте його у змінні середовища.",
     );
   }
   return value;
 }
 
 export function getAuthorizeUrl(redirectUri: string, state: string): string {
-  const appId = requireEnv("INSTAGRAM_APP_ID");
+  const appId = getAppId();
   const params = new URLSearchParams({
     client_id: appId,
     redirect_uri: redirectUri,
@@ -60,8 +75,8 @@ export async function exchangeCodeForSession(
   code: string,
   redirectUri: string,
 ): Promise<InstagramSession> {
-  const appId = requireEnv("INSTAGRAM_APP_ID");
-  const appSecret = requireEnv("INSTAGRAM_APP_SECRET");
+  const appId = getAppId();
+  const appSecret = requireAppSecret();
 
   const shortLivedRes = await fetch(TOKEN_URL, {
     method: "POST",
