@@ -4,6 +4,7 @@ import type { InstagramSession } from "@/lib/instagram/session";
 const AUTHORIZE_URL = "https://www.instagram.com/oauth/authorize";
 const TOKEN_URL = "https://api.instagram.com/oauth/access_token";
 const LONG_LIVED_TOKEN_URL = "https://graph.instagram.com/access_token";
+const ME_URL = "https://graph.instagram.com/v23.0/me";
 
 const SCOPES = [
   "instagram_business_basic",
@@ -43,6 +44,11 @@ interface LongLivedTokenResponse {
   access_token: string;
   token_type: string;
   expires_in: number;
+}
+
+interface MeResponse {
+  user_id: string;
+  username: string;
 }
 
 /**
@@ -89,9 +95,24 @@ export async function exchangeCodeForSession(
 
   const longLived = (await longLivedRes.json()) as LongLivedTokenResponse;
 
+  // The user_id from the token exchange isn't reliably the same id the
+  // Graph API expects for /<IG_ID>/media — Meta's own docs have you fetch
+  // it separately via /me instead.
+  const meParams = new URLSearchParams({
+    fields: "user_id,username",
+    access_token: longLived.access_token,
+  });
+  const meRes = await fetch(`${ME_URL}?${meParams.toString()}`);
+
+  if (!meRes.ok) {
+    throw new InstagramOAuthError("Не вдалося отримати дані профілю Instagram.");
+  }
+
+  const me = (await meRes.json()) as MeResponse;
+
   return {
     accessToken: longLived.access_token,
-    userId: shortLived.user_id,
+    userId: me.user_id,
     expiresAt: Date.now() + longLived.expires_in * 1000,
   };
 }
