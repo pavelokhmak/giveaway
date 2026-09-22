@@ -1,19 +1,25 @@
 import "server-only";
 
 import type { InstagramProvider } from "@/lib/instagram/provider";
-import { DemoInstagramProvider } from "@/lib/instagram/demo-provider";
+import { InstagramProviderError } from "@/lib/instagram/provider";
 import { MetaInstagramProvider } from "@/lib/instagram/meta-provider";
 
 /**
- * Server-only factory. Falls back to the demo provider whenever Meta
- * credentials aren't configured, so the app always works out of the box.
+ * Server-only factory. Previously fell back to fake demo comments
+ * whenever Meta credentials weren't configured — that was silent and
+ * misleading (real users pasting a real URL would get fabricated
+ * comments with no indication they weren't real). Now it fails loudly
+ * with a clear, actionable error instead.
  */
 export function getInstagramProvider(): InstagramProvider {
   const accessToken = process.env.INSTAGRAM_ACCESS_TOKEN;
 
-  if (accessToken && accessToken.trim().length > 0) {
-    return new MetaInstagramProvider(accessToken);
+  if (!accessToken || accessToken.trim().length === 0) {
+    throw new InstagramProviderError(
+      "Доступ до Instagram API ще не налаштовано. Потрібно додати INSTAGRAM_ACCESS_TOKEN у налаштуваннях сервера.",
+      "unauthorized",
+    );
   }
 
-  return new DemoInstagramProvider();
+  return new MetaInstagramProvider(accessToken);
 }

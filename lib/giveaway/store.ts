@@ -29,7 +29,7 @@ export type DrawPhase =
 
 interface GiveawayStoreState {
   postUrl: string;
-  provider: "demo" | "meta" | null;
+  provider: "meta" | null;
   comments: InstagramComment[];
   settings: GiveawaySettings;
   phase: DrawPhase;
@@ -41,7 +41,7 @@ interface GiveawayStoreState {
   setPostUrl: (url: string) => void;
   loadComments: (
     comments: InstagramComment[],
-    provider: "demo" | "meta",
+    provider: "meta",
   ) => void;
   updateSettings: (partial: Partial<GiveawaySettings>) => void;
   goToSettings: () => void;

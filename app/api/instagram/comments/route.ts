@@ -33,9 +33,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsedUrl.error }, { status: 400 });
   }
 
-  const provider = getInstagramProvider();
-
   try {
+    const provider = getInstagramProvider();
     const comments = await provider.getComments(parsedUrl.data.url);
     return NextResponse.json({ provider: provider.name, comments });
   } catch (error) {

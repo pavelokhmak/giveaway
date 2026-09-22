@@ -1,7 +1,7 @@
 import type { InstagramComment } from "@/types/giveaway";
 
 export interface FetchCommentsResponse {
-  provider: "meta" | "demo";
+  provider: "meta";
   comments: InstagramComment[];
 }
 
@@ -14,7 +14,7 @@ export async function fetchComments(url: string): Promise<FetchCommentsResponse>
     body: JSON.stringify({ url }),
   });
 
-  let body: { comments?: InstagramComment[]; provider?: "meta" | "demo"; error?: string };
+  let body: { comments?: InstagramComment[]; provider?: "meta"; error?: string };
   try {
     body = await res.json();
   } catch {
@@ -27,5 +27,5 @@ export async function fetchComments(url: string): Promise<FetchCommentsResponse>
     );
   }
 
-  return { provider: body.provider ?? "demo", comments: body.comments };
+  return { provider: "meta", comments: body.comments };
 }

@@ -1,7 +1,7 @@
 import type { InstagramComment } from "@/types/giveaway";
 
 export interface InstagramProvider {
-  readonly name: "meta" | "demo";
+  readonly name: "meta";
   getComments(url: string): Promise<InstagramComment[]>;
 }
 
