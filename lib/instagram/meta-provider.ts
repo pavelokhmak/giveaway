@@ -33,21 +33,41 @@ interface MetaMediaResponse {
   paging?: { cursors?: { after?: string }; next?: string };
 }
 
-function mapError(status: number): InstagramProviderError {
-  if (status === 401 || status === 403) {
+interface MetaErrorBody {
+  error?: { message?: string; type?: string; code?: number; error_subcode?: number };
+}
+
+/**
+ * Reads the Graph API's JSON error body (when present) and folds its
+ * `message`/`code` into the thrown error, instead of a bare status code —
+ * Meta's error messages are usually specific enough to act on directly
+ * (bad scope, invalid media id, expired token, etc).
+ */
+async function mapError(res: Response): Promise<InstagramProviderError> {
+  let detail = "";
+  try {
+    const body = (await res.json()) as MetaErrorBody;
+    if (body.error?.message) {
+      detail = ` (${body.error.message}${body.error.code ? `, code ${body.error.code}` : ""}${body.error.error_subcode ? `/${body.error.error_subcode}` : ""})`;
+    }
+  } catch {
+    // response wasn't JSON — fall through with no extra detail
+  }
+
+  if (res.status === 401 || res.status === 403) {
     return new InstagramProviderError(
-      "Доступ до Instagram відхилено. Увійдіть ще раз.",
+      `Доступ до Instagram відхилено. Увійдіть ще раз.${detail}`,
       "unauthorized",
     );
   }
-  if (status === 429) {
+  if (res.status === 429) {
     return new InstagramProviderError(
-      "Перевищено ліміт запитів Instagram API. Спробуйте трохи пізніше.",
+      `Перевищено ліміт запитів Instagram API. Спробуйте трохи пізніше.${detail}`,
       "rate_limited",
     );
   }
   return new InstagramProviderError(
-    "Instagram API повернув неочікувану помилку.",
+    `Instagram API повернув неочікувану помилку.${detail}`,
     "unknown",
   );
 }
@@ -91,7 +111,7 @@ export class MetaInstagramProvider implements InstagramProvider {
         `${GRAPH_BASE_URL}/${mediaId}/comments?${params.toString()}`,
       );
 
-      if (!res.ok) throw mapError(res.status);
+      if (!res.ok) throw await mapError(res);
 
       const body = (await res.json()) as MetaCommentsResponse;
 
@@ -122,7 +142,7 @@ export class MetaInstagramProvider implements InstagramProvider {
     });
 
     const res = await fetch(`${GRAPH_BASE_URL}/${this.igUserId}/media?${params.toString()}`);
-    if (!res.ok) throw mapError(res.status);
+    if (!res.ok) throw await mapError(res);
 
     const body = (await res.json()) as MetaMediaResponse;
 
@@ -155,7 +175,7 @@ export class MetaInstagramProvider implements InstagramProvider {
       if (after) params.set("after", after);
 
       const res = await fetch(`${GRAPH_BASE_URL}/${this.igUserId}/media?${params.toString()}`);
-      if (!res.ok) throw mapError(res.status);
+      if (!res.ok) throw await mapError(res);
 
       const body = (await res.json()) as MetaMediaResponse;
       const match = body.data.find((node) => node.permalink.includes(shortcode));
