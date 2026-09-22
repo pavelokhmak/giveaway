@@ -13,8 +13,10 @@ const COMMENTS_PAGE_LIMIT = 40;
 interface MetaCommentNode {
   id: string;
   text: string;
-  username: string;
+  username?: string;
   timestamp: string;
+  from?: { id?: string; username?: string };
+  user?: { id?: string; username?: string };
 }
 
 interface MetaCommentsResponse {
@@ -108,7 +110,7 @@ export class MetaInstagramProvider implements InstagramProvider {
 
     do {
       const params = new URLSearchParams({
-        fields: "id,text,username,timestamp",
+        fields: "id,text,username,timestamp,from,user",
         access_token: this.accessToken,
         limit: "50",
       });
@@ -127,9 +129,10 @@ export class MetaInstagramProvider implements InstagramProvider {
       for (const node of body.data ?? []) {
         comments.push({
           id: node.id,
-          username: node.username ?? "unknown",
+          username: node.username ?? node.from?.username ?? node.user?.username ?? "unknown",
           text: node.text,
           createdAt: node.timestamp,
+          userId: node.from?.id ?? node.user?.id,
         });
       }
 
