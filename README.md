@@ -1,18 +1,23 @@
 # Instagram Giveaway Picker
 
-Paste an Instagram post link, import its comments, set fair entry rules, and
-randomly pick winners — with a cryptographically secure randomizer and a
-polished reveal animation. The UI is in **Ukrainian**, built mobile-first
-(this README stays in English for contributors).
+Log in with Instagram, pick one of your own posts, set fair entry rules, and
+randomly pick winners from its comments — with a cryptographically secure
+randomizer and a polished reveal animation. The UI is in **Ukrainian**,
+built mobile-first (this README stays in English for contributors).
 
 This is a deliberately simple, **database-free MVP**. Everything lives in
-React/Zustand state for the current browser session. Refresh the page and
-the giveaway resets — that's expected, not a bug.
+React/Zustand state and an httpOnly session cookie for the current browser.
+Refresh the page and the giveaway (not the login) resets — that's expected,
+not a bug.
 
 ## Pages
 
-- `/` — paste an Instagram post/reel URL and import its comments (no
-  Instagram API access required; see **Demo fallback** below).
+- `/` — "Увійти через Instagram" (log in with Instagram). Redirects
+  straight to `/connect` if already logged in.
+- `/connect` — lists the logged-in account's own recent posts (tap one to
+  load its comments), with a "paste a link to your own post" fallback for
+  older posts not in the list. Requires a session; redirects to `/` if
+  there isn't one.
 - `/giveaway` — the organizer's main screen: two numbers (comment count,
   how many pass the current rules) and a searchable/filterable participant
   list. A settings icon in the header opens `/giveaway/settings`; a sticky
@@ -26,10 +31,10 @@ the giveaway resets — that's expected, not a bug.
 
 ## Features
 
-- Paste an Instagram post/reel URL and import its comments. If
-  `INSTAGRAM_ACCESS_TOKEN` isn't configured, this silently falls back to
-  realistic demo data (see **Demo fallback**) — there's no visible "demo
-  mode" toggle in the UI.
+- **Real Instagram data only** — logging in via OAuth ("Business Login for
+  Instagram") is required; there's no demo/fake-data fallback anymore.
+  Meta's API only ever returns comments for posts the logged-in account
+  itself owns (see **Limitations**).
 - Configurable entry rules: winner/backup counts (including a **custom**
   value via the "Інше" option — typing your own number always works, not
   just the presets), required keyword (contains/exact), required mentions
@@ -71,76 +76,79 @@ the giveaway resets — that's expected, not a bug.
 
 ```bash
 npm install
+cp .env.example .env.local   # then fill in INSTAGRAM_APP_ID / INSTAGRAM_APP_SECRET
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) (ideally in a phone-
-width viewport or on an actual phone) and paste any Instagram post/reel
-URL — no configuration needed, see **Demo fallback**.
-
-## Demo fallback
-
-The app works completely without any Instagram API access. If
-`INSTAGRAM_ACCESS_TOKEN` isn't set (the default), every request
-automatically and silently falls back to a **Demo Provider** that
-generates 500 deterministic fake comments — there's no "Try Demo" button
-or "demo mode" badge in the UI; it just works when you paste a
-validly-shaped Instagram URL.
+width viewport or on an actual phone) and log in — see **Instagram API
+setup** below for the one-time Meta app configuration this requires.
 
 ## Environment variables
 
-Copy `.env.example` to `.env.local` if you want to try real Instagram data:
-
-```bash
-cp .env.example .env.local
 ```
-
-```
-INSTAGRAM_ACCESS_TOKEN=
 INSTAGRAM_APP_ID=
 INSTAGRAM_APP_SECRET=
 ```
 
-These are **server-only** — never exposed to the client (they're not
-prefixed with `NEXT_PUBLIC_`) — and read only inside the
-`/api/instagram/comments` route handler.
+Both are **server-only** — never exposed to the client (not prefixed with
+`NEXT_PUBLIC_`). See `.env.example` for where to get them. Without these,
+"Увійти через Instagram" fails immediately with a clear error instead of
+silently doing nothing.
 
-## Instagram API setup (optional)
+## Instagram API setup (required)
 
-The app never scrapes Instagram HTML, uses cookies, or automates a
-browser. The only supported path is the official Meta Graph API:
+The app never scrapes Instagram HTML, stores your password, or automates a
+browser — it's real OAuth ("Business Login for Instagram", Meta's current,
+Facebook-Page-free login flow for Instagram Business/Creator accounts):
 
-1. Create a Meta developer app and connect an Instagram **Business or
-   Creator** account.
-2. Generate a long-lived access token with the `instagram_basic` /
-   `instagram_manage_comments` permissions.
-3. Set `INSTAGRAM_ACCESS_TOKEN` (and the app id/secret, if you extend the
-   OAuth flow) in `.env.local`.
+1. Create an app at [developers.facebook.com/apps](https://developers.facebook.com/apps),
+   add the **Instagram** product, use case **Business Login for Instagram**.
+2. Under that product's settings, add a **Valid OAuth Redirect URI** for
+   every environment you'll use, exactly:
+   `<your-app-origin>/api/auth/instagram/callback`
+   (e.g. `http://localhost:3000/api/auth/instagram/callback` for local dev).
+3. Copy the **Instagram App ID** / **Instagram App Secret** into
+   `INSTAGRAM_APP_ID` / `INSTAGRAM_APP_SECRET`.
+4. While the app is in **Development** mode (the default — no App Review
+   needed), add each Instagram account that should be able to log in as an
+   **Instagram tester** under App Roles, and accept the invite from that
+   account's Instagram settings. This is enough for personal or small-group
+   use; going public to arbitrary users requires Meta's App Review.
 
-Note: the Graph API only returns comments for media **you manage** — it
-has no endpoint to look up an arbitrary public post by URL. `MetaInstagramProvider`
-(`lib/instagram/meta-provider.ts`) is wired up to fetch and paginate
-comments once a media ID is resolved; mapping a pasted URL to that media ID
-depends on which account you connect, so that lookup is left as a clearly
-marked extension point (`resolveMediaId`). Without credentials, or if this
-throws, the app simply falls back to demo data — nothing breaks.
+Once logged in, `MetaInstagramProvider` (`lib/instagram/meta-provider.ts`)
+lists the account's own recent media (`getRecentMedia`) for the `/connect`
+picker, and fetches paginated comments for a chosen media id
+(`getCommentsByMediaId`). Pasting a link instead is also supported —
+`resolveMediaId` matches it against the account's own recent media by
+permalink, since the Graph API has no direct "look up by shortcode"
+endpoint; very old posts outside the searched page range won't match, in
+which case picking from the list is the reliable path.
+
+The session (access token + Instagram user id) lives in a single httpOnly
+cookie set after the OAuth callback (`lib/instagram/session.ts`) — no
+database, and it works independently for as many different people as log
+in, each seeing only their own posts.
 
 ## Production deployment
 
 This is a stateless Next.js app — no database, no background workers, no
 Docker required. Deploy it anywhere that runs Next.js (Vercel, a Node
-server, etc.) and set the environment variables above if you want live
-Instagram data. Because giveaway state lives only in the browser tab, there
-is no persistence, multi-device sync, or server-side audit trail — plan
-your workflow (e.g. exporting the results CSV) accordingly.
+server, etc.), set the environment variables above, and register that
+deployment's own origin as an additional OAuth redirect URI in the Meta
+app. Because giveaway state lives only in the browser tab (the session
+cookie aside), there is no persistence, multi-device sync, or server-side
+audit trail — plan your workflow (e.g. exporting the results CSV)
+accordingly.
 
 ## Limitations (by design)
 
-- No database, accounts, or auth — state resets on page reload.
+- No database — state resets on page reload (except the login session,
+  which persists via cookie for ~60 days).
 - No permanent shareable results URL (see **Copy Results** instead).
-- The Meta provider fetches comments for media on a *connected* account;
-  it doesn't support arbitrary public post URLs (Instagram's API doesn't
-  either).
+- Comments can only be pulled from posts the **logged-in account itself
+  owns** — Meta's API has no way to fetch another account's comments, and
+  this app doesn't scrape around that restriction.
 - Everyone wins at most one prize per draw, in every entry mode — extra
   tickets from "per-comment"/"per-mention" mode only affect the odds of
   being picked, never how many prizes someone can hold.
@@ -162,16 +170,20 @@ CSV export.
 
 ```
 app/
-  page.tsx                     Landing page
-  giveaway/page.tsx            Participant list → draw → results
-  giveaway/settings/page.tsx   Organizer-only settings screen
-  api/instagram/comments/      Server route: Meta or Demo provider
+  page.tsx                      Login screen (redirects to /connect if logged in)
+  connect/page.tsx               Pick one of your own posts
+  giveaway/page.tsx              Participant list → draw → results
+  giveaway/settings/page.tsx     Organizer-only settings screen
+  api/auth/instagram/            OAuth login/callback/logout routes
+  api/instagram/comments/        Comments for a media id or pasted URL
+  api/instagram/media/           The logged-in account's recent posts
 components/
-  giveaway/                    Giveaway-specific UI (incl. username-picker.tsx)
-  ui/                          shadcn/ui primitives
+  giveaway/                      Giveaway-specific UI (incl. connect-picker.tsx,
+                                  username-picker.tsx)
+  ui/                            shadcn/ui primitives
 lib/
-  instagram/                   Provider abstraction (Meta + Demo)
-  giveaway/                    Filters, randomizer, CSV, Zustand store
-  validations/                 Zod schemas
-types/giveaway.ts              Shared types
+  instagram/                     Provider (meta-provider.ts), oauth.ts, session.ts
+  giveaway/                      Filters, randomizer, CSV, Zustand store
+  validations/                   Zod schemas
+types/giveaway.ts                Shared types
 ```

@@ -1,34 +1,69 @@
 import type { InstagramComment } from "@/types/giveaway";
-import type { InstagramProvider } from "@/lib/instagram/provider";
+import type { InstagramMedia, InstagramProvider } from "@/lib/instagram/provider";
 import { InstagramProviderError } from "@/lib/instagram/provider";
 import { parseInstagramUrl } from "@/lib/validations/instagram";
+
+const GRAPH_BASE_URL = "https://graph.instagram.com/v23.0";
+const MEDIA_SEARCH_PAGE_LIMIT = 8;
 
 interface MetaCommentNode {
   id: string;
   text: string;
   username: string;
   timestamp: string;
-  from?: { id?: string; username?: string };
 }
 
 interface MetaCommentsResponse {
   data: MetaCommentNode[];
-  paging?: { next?: string };
+  paging?: { cursors?: { after?: string }; next?: string };
+}
+
+interface MetaMediaNode {
+  id: string;
+  caption?: string;
+  permalink: string;
+  timestamp: string;
+  media_type: string;
+  media_url?: string;
+  thumbnail_url?: string;
+}
+
+interface MetaMediaResponse {
+  data: MetaMediaNode[];
+  paging?: { cursors?: { after?: string }; next?: string };
+}
+
+function mapError(status: number): InstagramProviderError {
+  if (status === 401 || status === 403) {
+    return new InstagramProviderError(
+      "Доступ до Instagram відхилено. Увійдіть ще раз.",
+      "unauthorized",
+    );
+  }
+  if (status === 429) {
+    return new InstagramProviderError(
+      "Перевищено ліміт запитів Instagram API. Спробуйте трохи пізніше.",
+      "rate_limited",
+    );
+  }
+  return new InstagramProviderError(
+    "Instagram API повернув неочікувану помилку.",
+    "unknown",
+  );
 }
 
 /**
- * Talks to the Meta Graph API's IG Comments endpoint. Requires a
- * long-lived access token for a connected Instagram Business/Creator
- * account (Meta's API only returns comments for media you manage, not
- * arbitrary public posts). Credentials are read server-side only, never
- * exposed to the client.
+ * Talks to the Instagram Graph API ("Business Login for Instagram") on
+ * behalf of the person who just authorized the app via OAuth. Meta's API
+ * only returns comments for media the authorized account itself owns —
+ * there is no way to fetch comments for someone else's post.
  */
 export class MetaInstagramProvider implements InstagramProvider {
   readonly name = "meta" as const;
 
   constructor(
     private readonly accessToken: string,
-    private readonly graphBaseUrl = "https://graph.facebook.com/v21.0",
+    private readonly igUserId: string,
   ) {}
 
   async getComments(url: string): Promise<InstagramComment[]> {
@@ -38,73 +73,101 @@ export class MetaInstagramProvider implements InstagramProvider {
     }
 
     const mediaId = await this.resolveMediaId(parsed.data.shortcode);
-    return this.fetchAllComments(mediaId);
+    return this.getCommentsByMediaId(mediaId);
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  private async resolveMediaId(shortcode: string): Promise<string> {
-    // The Graph API has no public "lookup by shortcode" endpoint; in
-    // production this would map a shortcode to a media id from the
-    // connected account's own media list. Left as a clear extension
-    // point since it depends on which IG account is connected.
-    throw new InstagramProviderError(
-      "Щоб визначити пост за посиланням, потрібно зіставити його з ID медіа зі списку публікацій підключеного акаунта.",
-      "not_found",
-    );
-  }
-
-  private async fetchAllComments(mediaId: string): Promise<InstagramComment[]> {
+  async getCommentsByMediaId(mediaId: string): Promise<InstagramComment[]> {
     const comments: InstagramComment[] = [];
     let after: string | undefined;
 
     do {
       const params = new URLSearchParams({
-        fields: "id,text,username,timestamp,from",
+        fields: "id,text,username,timestamp",
         access_token: this.accessToken,
       });
       if (after) params.set("after", after);
 
       const res = await fetch(
-        `${this.graphBaseUrl}/${mediaId}/comments?${params.toString()}`,
+        `${GRAPH_BASE_URL}/${mediaId}/comments?${params.toString()}`,
       );
 
-      if (res.status === 401 || res.status === 403) {
-        throw new InstagramProviderError(
-          "Дані доступу Instagram API відхилено.",
-          "unauthorized",
-        );
-      }
-      if (res.status === 429) {
-        throw new InstagramProviderError(
-          "Перевищено ліміт запитів Instagram API. Спробуйте трохи пізніше.",
-          "rate_limited",
-        );
-      }
-      if (!res.ok) {
-        throw new InstagramProviderError(
-          "Instagram API повернув неочікувану помилку.",
-          "unknown",
-        );
-      }
+      if (!res.ok) throw mapError(res.status);
 
       const body = (await res.json()) as MetaCommentsResponse;
 
       for (const node of body.data) {
         comments.push({
           id: node.id,
-          username: node.username ?? node.from?.username ?? "unknown",
+          username: node.username ?? "unknown",
           text: node.text,
           createdAt: node.timestamp,
-          userId: node.from?.id,
         });
       }
 
-      const nextUrl = body.paging?.next;
-      after = nextUrl
-        ? new URL(nextUrl).searchParams.get("after") ?? undefined
-        : undefined;
+      after = body.paging?.cursors?.after;
     } while (after);
 
     return comments;
+  }
+
+  /**
+   * The account's own recent posts, newest first — used to power the
+   * "pick one of your posts" screen after login.
+   */
+  async getRecentMedia(limit = 25): Promise<InstagramMedia[]> {
+    const params = new URLSearchParams({
+      fields: "id,caption,permalink,timestamp,media_type,media_url,thumbnail_url",
+      access_token: this.accessToken,
+      limit: String(limit),
+    });
+
+    const res = await fetch(`${GRAPH_BASE_URL}/${this.igUserId}/media?${params.toString()}`);
+    if (!res.ok) throw mapError(res.status);
+
+    const body = (await res.json()) as MetaMediaResponse;
+
+    return body.data.map((node) => ({
+      id: node.id,
+      caption: node.caption ?? "",
+      permalink: node.permalink,
+      createdAt: node.timestamp,
+      thumbnailUrl:
+        node.media_type === "VIDEO" ? node.thumbnail_url : node.media_url,
+    }));
+  }
+
+  /**
+   * Matches a pasted post URL to a media id by searching the account's
+   * own recent media for a matching permalink (the Graph API has no
+   * direct "look up by shortcode" endpoint). Only searches a bounded
+   * number of pages — very old posts may not be found this way, in
+   * which case picking the post from the list is the reliable path.
+   */
+  private async resolveMediaId(shortcode: string): Promise<string> {
+    let after: string | undefined;
+
+    for (let page = 0; page < MEDIA_SEARCH_PAGE_LIMIT; page++) {
+      const params = new URLSearchParams({
+        fields: "id,permalink",
+        access_token: this.accessToken,
+        limit: "50",
+      });
+      if (after) params.set("after", after);
+
+      const res = await fetch(`${GRAPH_BASE_URL}/${this.igUserId}/media?${params.toString()}`);
+      if (!res.ok) throw mapError(res.status);
+
+      const body = (await res.json()) as MetaMediaResponse;
+      const match = body.data.find((node) => node.permalink.includes(shortcode));
+      if (match) return match.id;
+
+      after = body.paging?.cursors?.after;
+      if (!after) break;
+    }
+
+    throw new InstagramProviderError(
+      "Цей пост не знайдено серед ваших публікацій. Оберіть його зі списку замість вставки посилання.",
+      "not_found",
+    );
   }
 }

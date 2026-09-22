@@ -1,9 +1,24 @@
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { Gift } from "lucide-react";
 
+import { readSession } from "@/lib/instagram/session";
 import { GiveawayForm } from "@/components/giveaway/giveaway-form";
 import { ThemeToggle } from "@/components/theme-toggle";
 
-export default function Home() {
+interface HomeProps {
+  searchParams: Promise<{ auth_error?: string }>;
+}
+
+export default async function Home({ searchParams }: HomeProps) {
+  const cookieStore = await cookies();
+  const session = readSession(cookieStore);
+  const { auth_error: authError } = await searchParams;
+
+  if (session && !authError) {
+    redirect("/connect");
+  }
+
   return (
     <div className="relative flex min-h-screen flex-col overflow-hidden">
       <div
@@ -26,15 +41,16 @@ export default function Home() {
             в Instagram
           </h1>
           <p className="text-balance text-lg text-muted-foreground">
-            Встав посилання на пост в Instagram і випадково обери переможців.
+            Увійдіть через Instagram і оберіть свій пост, щоб випадково
+            обрати переможців серед коментарів.
           </p>
         </div>
 
-        <GiveawayForm />
+        <GiveawayForm authError={authError} />
 
         <p className="max-w-md text-xs text-muted-foreground">
-          Без акаунтів і бази даних. Усе працює прямо в браузері під час
-          цієї сесії — оновлення сторінки почне новий розіграш.
+          Без бази даних. Дані розіграшу лишаються у вашому браузері під
+          час цієї сесії — оновлення сторінки почне новий розіграш.
         </p>
       </main>
     </div>

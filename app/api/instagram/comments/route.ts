@@ -2,14 +2,39 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 
 import { parseInstagramUrl } from "@/lib/validations/instagram";
-import { getInstagramProvider } from "@/lib/instagram/get-provider";
+import { readSession } from "@/lib/instagram/session";
+import { MetaInstagramProvider } from "@/lib/instagram/meta-provider";
 import { InstagramProviderError } from "@/lib/instagram/provider";
 
-const requestSchema = z.object({
-  url: z.string(),
-});
+const requestSchema = z.union([
+  z.object({ mediaId: z.string().min(1) }),
+  z.object({ url: z.string().min(1) }),
+]);
+
+function errorStatus(code: InstagramProviderError["code"]): number {
+  switch (code) {
+    case "invalid_url":
+      return 400;
+    case "not_found":
+      return 404;
+    case "unauthorized":
+      return 401;
+    case "rate_limited":
+      return 429;
+    default:
+      return 502;
+  }
+}
 
 export async function POST(request: NextRequest) {
+  const session = readSession(request.cookies);
+  if (!session) {
+    return NextResponse.json(
+      { error: "Потрібно увійти через Instagram." },
+      { status: 401 },
+    );
+  }
+
   let body: unknown;
   try {
     body = await request.json();
@@ -23,33 +48,32 @@ export async function POST(request: NextRequest) {
   const parsedBody = requestSchema.safeParse(body);
   if (!parsedBody.success) {
     return NextResponse.json(
-      { error: "Відсутнє або недійсне поле `url`." },
+      { error: "Відсутнє або недійсне поле `mediaId`/`url`." },
       { status: 400 },
     );
   }
 
-  const parsedUrl = parseInstagramUrl(parsedBody.data.url);
-  if (!parsedUrl.success) {
-    return NextResponse.json({ error: parsedUrl.error }, { status: 400 });
-  }
+  const provider = new MetaInstagramProvider(session.accessToken, session.userId);
 
   try {
-    const provider = getInstagramProvider();
+    if ("mediaId" in parsedBody.data) {
+      const comments = await provider.getCommentsByMediaId(parsedBody.data.mediaId);
+      return NextResponse.json({ provider: provider.name, comments });
+    }
+
+    const parsedUrl = parseInstagramUrl(parsedBody.data.url);
+    if (!parsedUrl.success) {
+      return NextResponse.json({ error: parsedUrl.error }, { status: 400 });
+    }
+
     const comments = await provider.getComments(parsedUrl.data.url);
     return NextResponse.json({ provider: provider.name, comments });
   } catch (error) {
     if (error instanceof InstagramProviderError) {
-      const status =
-        error.code === "invalid_url"
-          ? 400
-          : error.code === "not_found"
-            ? 404
-            : error.code === "unauthorized"
-              ? 401
-              : error.code === "rate_limited"
-                ? 429
-                : 502;
-      return NextResponse.json({ error: error.message }, { status });
+      return NextResponse.json(
+        { error: error.message },
+        { status: errorStatus(error.code) },
+      );
     }
 
     return NextResponse.json(
