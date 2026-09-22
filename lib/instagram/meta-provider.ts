@@ -104,6 +104,7 @@ export class MetaInstagramProvider implements InstagramProvider {
     const comments: InstagramComment[] = [];
     let after: string | undefined;
     let page = 0;
+    let firstPageRawText: string | null = null;
 
     do {
       const params = new URLSearchParams({
@@ -119,16 +120,11 @@ export class MetaInstagramProvider implements InstagramProvider {
 
       if (!res.ok) throw await mapError(res);
 
-      const body = (await res.json()) as MetaCommentsResponse;
+      const rawText = await res.text();
+      if (page === 0) firstPageRawText = rawText;
+      const body = JSON.parse(rawText) as MetaCommentsResponse;
 
-      // Temporary diagnostic: visible in Cloudflare's Observability logs
-      // (no access token included). Helps pin down why a post with real
-      // comments came back empty.
-      console.log(
-        `[comments] mediaId=${mediaId} page=${page} received=${body.data?.length ?? "undefined"} hasNext=${Boolean(body.paging?.cursors?.after)} raw=${JSON.stringify(body).slice(0, 500)}`,
-      );
-
-      for (const node of body.data) {
+      for (const node of body.data ?? []) {
         comments.push({
           id: node.id,
           username: node.username ?? "unknown",
@@ -143,6 +139,18 @@ export class MetaInstagramProvider implements InstagramProvider {
       after = nextAfter && nextAfter !== after ? nextAfter : undefined;
       page++;
     } while (after && page < COMMENTS_PAGE_LIMIT);
+
+    // Temporary diagnostic: Cloudflare's Observability logs aren't
+    // surfacing console.log output, so when a post that should have
+    // comments comes back empty, show Instagram's raw API response
+    // directly in the on-screen error instead (mediaId + first page
+    // body, no access token).
+    if (comments.length === 0 && firstPageRawText) {
+      throw new InstagramProviderError(
+        `Instagram API не повернув коментарів. mediaId=${mediaId} raw=${firstPageRawText.slice(0, 600)}`,
+        "not_found",
+      );
+    }
 
     return comments;
   }
