@@ -121,6 +121,13 @@ export class MetaInstagramProvider implements InstagramProvider {
 
       const body = (await res.json()) as MetaCommentsResponse;
 
+      // Temporary diagnostic: visible in Cloudflare's Observability logs
+      // (no access token included). Helps pin down why a post with real
+      // comments came back empty.
+      console.log(
+        `[comments] mediaId=${mediaId} page=${page} received=${body.data?.length ?? "undefined"} hasNext=${Boolean(body.paging?.cursors?.after)} raw=${JSON.stringify(body).slice(0, 500)}`,
+      );
+
       for (const node of body.data) {
         comments.push({
           id: node.id,
