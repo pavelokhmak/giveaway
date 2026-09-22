@@ -34,7 +34,6 @@ export interface GiveawaySettings {
   keywordMode: KeywordMode;
   requireMention: boolean;
   minimumMentions: number;
-  excludePreviousWinners: boolean;
   /** Usernames that can never win ("cannot win" list). */
   excludedUsernames: string[];
   /**
@@ -51,7 +50,6 @@ export type ExclusionReason =
   | "Not enough mentions"
   | "Excluded username"
   | "Not in allowed list"
-  | "Previous winner"
   | "Comment too short";
 
 export interface EligibilityResult {

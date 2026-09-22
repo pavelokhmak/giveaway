@@ -28,7 +28,6 @@ export default function GiveawayPage() {
   const phase = useGiveawayStore((s) => s.phase);
   const winners = useGiveawayStore((s) => s.winners);
   const backups = useGiveawayStore((s) => s.backups);
-  const allTimeWinnerUsernames = useGiveawayStore((s) => s.allTimeWinnerUsernames);
 
   const startDraw = useGiveawayStore((s) => s.startDraw);
   const setDrawResult = useGiveawayStore((s) => s.setDrawResult);
@@ -51,8 +50,8 @@ export default function GiveawayPage() {
   );
 
   const eligibilityResults = React.useMemo(
-    () => filterParticipants(participants, settings, allTimeWinnerUsernames),
-    [participants, settings, allTimeWinnerUsernames],
+    () => filterParticipants(participants, settings),
+    [participants, settings],
   );
 
   // The real pool the draw actually selects from — respects the private

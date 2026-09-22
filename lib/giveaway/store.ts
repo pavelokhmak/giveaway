@@ -17,7 +17,6 @@ export const DEFAULT_SETTINGS: GiveawaySettings = {
   keywordMode: "contains",
   requireMention: false,
   minimumMentions: 1,
-  excludePreviousWinners: true,
   excludedUsernames: [],
   includedUsernames: [],
   minimumCommentLength: undefined,
@@ -38,7 +37,6 @@ interface GiveawayStoreState {
   winners: Winner[];
   backups: Winner[];
   rejectedWinners: Winner[];
-  allTimeWinnerUsernames: string[];
 
   setPostUrl: (url: string) => void;
   loadComments: (
@@ -71,7 +69,6 @@ export const useGiveawayStore = create<GiveawayStoreState>()(
       winners: [],
       backups: [],
       rejectedWinners: [],
-      allTimeWinnerUsernames: [],
 
       setPostUrl: (url) => set({ postUrl: url }),
 
@@ -87,14 +84,7 @@ export const useGiveawayStore = create<GiveawayStoreState>()(
 
       setDrawResult: (winners, backups) => set({ winners, backups }),
 
-      finishDraw: () =>
-        set((state) => ({
-          phase: "results",
-          allTimeWinnerUsernames: [
-            ...state.allTimeWinnerUsernames,
-            ...state.winners.map((w) => w.username),
-          ],
-        })),
+      finishDraw: () => set({ phase: "results" }),
 
       rejectWinner: (username) => {
         const state = get();

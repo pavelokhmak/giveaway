@@ -174,17 +174,6 @@ describe("filterParticipants", () => {
     expect(results.find((r) => r.normalizedUsername === "c")?.eligible).toBe(true);
   });
 
-  it("excludes previous winners when enabled", () => {
-    const participants = buildParticipants([comment({ username: "john" })]);
-    const results = filterParticipants(
-      participants,
-      { ...DEFAULT_SETTINGS, excludePreviousWinners: true },
-      ["john"],
-    );
-    expect(results[0].eligible).toBe(false);
-    expect(results[0].reasons).toContain("Previous winner");
-  });
-
   it("filters out comments shorter than the minimum length", () => {
     const participants = buildParticipants([
       comment({ username: "a", text: "hi" }),

@@ -100,16 +100,12 @@ function commentMatchesKeyword(
 export function filterParticipants(
   participants: Participant[],
   settings: GiveawaySettings,
-  previousWinners: string[] = [],
 ): EligibilityResult[] {
   const excludedSet = new Set(
     settings.excludedUsernames.map((u) => normalizeUsername(u)),
   );
   const includedSet = new Set(
     settings.includedUsernames.map((u) => normalizeUsername(u)),
-  );
-  const previousWinnerSet = new Set(
-    previousWinners.map((u) => normalizeUsername(u)),
   );
 
   return participants.map((participant) => {
@@ -121,13 +117,6 @@ export function filterParticipants(
 
     if (includedSet.size > 0 && !includedSet.has(participant.normalizedUsername)) {
       reasons.push("Not in allowed list");
-    }
-
-    if (
-      settings.excludePreviousWinners &&
-      previousWinnerSet.has(participant.normalizedUsername)
-    ) {
-      reasons.push("Previous winner");
     }
 
     const matchingComments = participant.comments.filter((comment) => {
@@ -223,8 +212,8 @@ export function getUsernameSuggestions(comments: InstagramComment[]): string[] {
  * as if those lists didn't exist, so the filtering isn't visible to
  * anyone glancing at the screen. These two reasons are the only ones
  * that come from those private lists; every other reason (keyword,
- * mention, comment length, previous winner) reflects publicly visible
- * comment content and stays visible as-is.
+ * mention, comment length) reflects publicly visible comment content
+ * and stays visible as-is.
  */
 const PRIVATE_LIST_REASONS: ExclusionReason[] = [
   "Excluded username",
@@ -284,7 +273,6 @@ const REASON_LABELS_UK: Record<ExclusionReason, string> = {
   "Not enough mentions": "Замало відміток",
   "Excluded username": "У списку тих, хто не може виграти",
   "Not in allowed list": "Немає у списку тих, хто може виграти",
-  "Previous winner": "Вже переможець",
   "Comment too short": "Закороткий коментар",
 };
 

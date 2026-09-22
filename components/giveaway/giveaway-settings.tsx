@@ -4,7 +4,6 @@ import * as React from "react";
 
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
 import { UsernamePicker } from "@/components/giveaway/username-picker";
 import {
@@ -259,16 +258,6 @@ export function GiveawaySettingsPanel({
           onChange={(excludedUsernames) => onChange({ excludedUsernames })}
           suggestions={usernameSuggestions}
         />
-
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <Checkbox
-            checked={settings.excludePreviousWinners}
-            onCheckedChange={(checked) =>
-              onChange({ excludePreviousWinners: checked === true })
-            }
-          />
-          Виключити переможців цієї сесії
-        </label>
       </div>
     </div>
   );
