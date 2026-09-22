@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const provider = new MetaInstagramProvider(session.accessToken, session.userId);
-    const media = await provider.getRecentMedia(25);
+    const media = await provider.getRecentMedia(50);
     return NextResponse.json({ media });
   } catch (error) {
     if (error instanceof InstagramProviderError) {

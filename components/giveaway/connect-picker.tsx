@@ -15,6 +15,7 @@ import {
 } from "@/lib/instagram/client";
 import { useGiveawayStore } from "@/lib/giveaway/store";
 import type { InstagramMedia } from "@/lib/instagram/provider";
+import type { InstagramComment } from "@/types/giveaway";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -51,6 +52,21 @@ export function ConnectPicker() {
     };
   }, []);
 
+  const goToGiveaway = (comments: InstagramComment[]) => {
+    if (comments.length === 0) {
+      setSelectingId(null);
+      setError(
+        "У цього поста ще немає коментарів (або їх не вдалося отримати). Оберіть інший пост.",
+      );
+      return;
+    }
+    // A full navigation instead of router.push: more reliable across
+    // hosting setups than a client-side transition. A tiny delay before
+    // navigating gives the just-written sessionStorage a moment to
+    // settle before the page unloads.
+    setTimeout(() => window.location.assign("/giveaway"), 30);
+  };
+
   const handlePick = async (item: InstagramMedia) => {
     setSelectingId(item.id);
     setError(null);
@@ -58,10 +74,7 @@ export function ConnectPicker() {
       const result = await fetchCommentsByMediaId(item.id);
       setPostUrl(item.permalink);
       loadComments(result.comments, result.provider);
-      // A full navigation instead of router.push: more reliable across
-      // hosting setups than a client-side transition, and the store is
-      // already persisted to sessionStorage so nothing is lost.
-      window.location.assign("/giveaway");
+      goToGiveaway(result.comments);
     } catch (err) {
       setSelectingId(null);
       setError(
@@ -80,7 +93,7 @@ export function ConnectPicker() {
       const result = await fetchCommentsByUrl(manualUrl);
       setPostUrl(manualUrl);
       loadComments(result.comments, result.provider);
-      window.location.assign("/giveaway");
+      goToGiveaway(result.comments);
     } catch (err) {
       setSelectingId(null);
       setError(
