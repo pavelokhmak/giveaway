@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check } from "lucide-react";
 
-import { useGiveawayStore } from "@/lib/giveaway/store";
+import { useGiveawayStore, useGiveawayStoreHydrated } from "@/lib/giveaway/store";
 import { getUsernameSuggestions } from "@/lib/giveaway/filters";
 import { GiveawaySettingsPanel } from "@/components/giveaway/giveaway-settings";
 import { Button } from "@/components/ui/button";
@@ -16,22 +16,24 @@ export default function GiveawaySettingsPage() {
   const phase = useGiveawayStore((s) => s.phase);
   const settings = useGiveawayStore((s) => s.settings);
   const updateSettings = useGiveawayStore((s) => s.updateSettings);
+  const hydrated = useGiveawayStoreHydrated();
 
   React.useEffect(() => {
+    if (!hydrated) return;
     if (comments.length === 0) {
       router.replace("/");
     } else if (phase === "drawing" || phase === "results") {
       router.replace("/giveaway");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comments.length, phase]);
+  }, [hydrated, comments.length, phase]);
 
   const usernameSuggestions = React.useMemo(
     () => getUsernameSuggestions(comments),
     [comments],
   );
 
-  if (comments.length === 0 || phase === "drawing" || phase === "results") {
+  if (!hydrated || comments.length === 0 || phase === "drawing" || phase === "results") {
     return null;
   }
 

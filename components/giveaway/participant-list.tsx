@@ -12,7 +12,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import { reasonLabelUk } from "@/lib/giveaway/filters";
+import { looksEligible, reasonLabelUk, visibleReasons } from "@/lib/giveaway/filters";
 import type { EligibilityResult } from "@/types/giveaway";
 
 const PAGE_SIZE = 20;
@@ -31,8 +31,9 @@ export function ParticipantList({ results }: ParticipantListProps) {
   const filtered = React.useMemo(() => {
     const term = search.trim().toLowerCase();
     return results.filter((r) => {
-      if (filter === "eligible" && !r.eligible) return false;
-      if (filter === "excluded" && r.eligible) return false;
+      const eligibleLooking = looksEligible(r);
+      if (filter === "eligible" && !eligibleLooking) return false;
+      if (filter === "excluded" && eligibleLooking) return false;
       if (term && !r.username.toLowerCase().includes(term)) return false;
       return true;
     });
@@ -78,32 +79,36 @@ export function ParticipantList({ results }: ParticipantListProps) {
               Немає учасників за цими фільтрами.
             </p>
           )}
-          {pageItems.map((r, index) => (
-            <div
-              key={`${page}-${index}-${r.normalizedUsername}-${r.participant.comments[0]?.id}`}
-              className="flex items-start justify-between gap-3 px-3 py-2.5"
-            >
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">@{r.normalizedUsername}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {r.participant.comments[0]?.text}
-                </p>
+          {pageItems.map((r, index) => {
+            const reasons = visibleReasons(r.reasons);
+            const eligibleLooking = reasons.length === 0;
+            return (
+              <div
+                key={`${page}-${index}-${r.normalizedUsername}-${r.participant.comments[0]?.id}`}
+                className="flex items-start justify-between gap-3 px-3 py-2.5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium">@{r.normalizedUsername}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {r.participant.comments[0]?.text}
+                  </p>
+                </div>
+                {eligibleLooking ? (
+                  <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Check className="size-3.5" />
+                  </span>
+                ) : (
+                  <Badge
+                    variant="secondary"
+                    className="shrink-0 bg-destructive/10 text-[11px] text-destructive"
+                    title={reasons.map(reasonLabelUk).join(", ")}
+                  >
+                    {reasonLabelUk(reasons[0])}
+                  </Badge>
+                )}
               </div>
-              {r.eligible ? (
-                <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                  <Check className="size-3.5" />
-                </span>
-              ) : (
-                <Badge
-                  variant="secondary"
-                  className="shrink-0 bg-destructive/10 text-[11px] text-destructive"
-                  title={r.reasons.map(reasonLabelUk).join(", ")}
-                >
-                  {r.reasons[0] ? reasonLabelUk(r.reasons[0]) : "Не проходить"}
-                </Badge>
-              )}
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {pageCount > 1 && (

@@ -4,11 +4,12 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Gift, Settings2 } from "lucide-react";
 
-import { useGiveawayStore } from "@/lib/giveaway/store";
+import { useGiveawayStore, useGiveawayStoreHydrated } from "@/lib/giveaway/store";
 import {
   buildParticipants,
-  computeFilterStats,
+  computeDisplayStats,
   filterParticipants,
+  looksEligible,
 } from "@/lib/giveaway/filters";
 import { GiveawayStats } from "@/components/giveaway/giveaway-stats";
 import { ParticipantList } from "@/components/giveaway/participant-list";
@@ -35,13 +36,14 @@ export default function GiveawayPage() {
   const rejectWinner = useGiveawayStore((s) => s.rejectWinner);
   const goToSettings = useGiveawayStore((s) => s.goToSettings);
   const reset = useGiveawayStore((s) => s.reset);
+  const hydrated = useGiveawayStoreHydrated();
 
   React.useEffect(() => {
-    if (comments.length === 0) {
+    if (hydrated && comments.length === 0) {
       router.replace("/");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [comments.length]);
+  }, [hydrated, comments.length]);
 
   const participants = React.useMemo(
     () => buildParticipants(comments, settings.entryMode),
@@ -53,13 +55,24 @@ export default function GiveawayPage() {
     [participants, settings, allTimeWinnerUsernames],
   );
 
+  // The real pool the draw actually selects from — respects the private
+  // "can win" / "cannot win" lists.
   const eligible = React.useMemo(
     () => eligibilityResults.filter((r) => r.eligible),
     [eligibilityResults],
   );
 
+  // Names to cycle through in the draw animation — looks the same with
+  // or without the private lists applied, so the filtering never shows.
+  const displayNames = React.useMemo(
+    () => eligibilityResults.filter(looksEligible).map((r) => r.username),
+    [eligibilityResults],
+  );
+
+  // Everything shown on screen (stat cards, results) uses "looks
+  // eligible" counts so the private lists never visibly change a number.
   const stats = React.useMemo(
-    () => computeFilterStats(comments.length, eligibilityResults),
+    () => computeDisplayStats(comments.length, eligibilityResults),
     [comments.length, eligibilityResults],
   );
 
@@ -86,7 +99,7 @@ export default function GiveawayPage() {
     router.push("/giveaway/settings");
   };
 
-  if (comments.length === 0) {
+  if (!hydrated || comments.length === 0) {
     return null;
   }
 
@@ -119,6 +132,7 @@ export default function GiveawayPage() {
         {phase === "drawing" ? (
           <WinnerDraw
             eligible={eligible}
+            displayNames={displayNames}
             settings={settings}
             onComplete={handleDrawComplete}
             onBack={handleBackToSettings}
@@ -146,12 +160,12 @@ export default function GiveawayPage() {
 
             {notEnoughEligible && (
               <Alert variant="destructive">
-                <AlertTitle>Замало учасників, які пройшли відбір</AlertTitle>
+                <AlertTitle>Розіграш поки не можна почати</AlertTitle>
                 <AlertDescription>
-                  Потрібно {needed} учасників ({settings.winnerCount}{" "}
-                  переможців + {settings.backupCount} запасних), але
-                  відповідають умовам лише {eligible.length}. Зменшіть
-                  кількість у налаштуваннях або послабте фільтри.
+                  Для {needed} переможців ({settings.winnerCount}{" "}
+                  переможців + {settings.backupCount} запасних) зараз
+                  недостатньо учасників. Змініть кількість у налаштуваннях
+                  або послабте умови.
                 </AlertDescription>
               </Alert>
             )}

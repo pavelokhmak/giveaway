@@ -19,6 +19,14 @@ type Stage = "shuffling" | "reveal-winners" | "reveal-backups" | "done";
 
 interface WinnerDrawProps {
   eligible: EligibilityResult[];
+  /**
+   * Usernames to cycle through during the shuffle animation. Deliberately
+   * separate from `eligible` (the real draw pool): it includes everyone
+   * who *looks* eligible, ignoring the private can/cannot-win lists, so
+   * the animation never visibly reveals that those lists narrowed things
+   * down. The actual winner still only ever comes from `eligible`.
+   */
+  displayNames: string[];
   settings: GiveawaySettings;
   onComplete: (winners: Winner[], backups: Winner[]) => void;
   onBack: () => void;
@@ -38,6 +46,7 @@ function fireConfetti() {
 
 export function WinnerDraw({
   eligible,
+  displayNames,
   settings,
   onComplete,
   onBack,
@@ -80,7 +89,7 @@ export function WinnerDraw({
         return;
       }
 
-      const names = eligible.map((e) => e.username);
+      const names = displayNames.length > 0 ? displayNames : eligible.map((e) => e.username);
       const duration = prefersReducedMotion ? 300 : SHUFFLE_DURATION_MS;
       const start = Date.now();
 

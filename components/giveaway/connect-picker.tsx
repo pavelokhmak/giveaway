@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { AlertCircle, Camera, ChevronRight, ImageOff, Loader2, LogOut } from "lucide-react";
+import { AlertCircle, Camera, ImageOff, Loader2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -151,48 +151,48 @@ export function ConnectPicker() {
         )}
 
         {state === "ready" && (
-          <div className="divide-y rounded-lg border">
+          <>
             {media.length === 0 && (
               <p className="py-8 text-center text-sm text-muted-foreground">
                 У вас ще немає публікацій.
               </p>
             )}
-            {media.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                disabled={selectingId !== null}
-                onClick={() => handlePick(item)}
-                className="flex w-full items-center gap-3 px-3 py-3 text-left disabled:opacity-50"
-              >
-                <div className="flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-muted">
+            <div className="grid grid-cols-3 gap-0.5 overflow-hidden rounded-lg">
+              {media.map((item) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  disabled={selectingId !== null}
+                  onClick={() => handlePick(item)}
+                  className="group relative aspect-square overflow-hidden bg-muted disabled:opacity-60"
+                >
                   {item.thumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img
                       src={item.thumbnailUrl}
                       alt=""
-                      className="size-full object-cover"
+                      className="size-full object-cover transition-transform group-active:scale-95"
                     />
                   ) : (
-                    <ImageOff className="size-5 text-muted-foreground" />
+                    <div className="flex size-full flex-col items-center justify-center gap-1 p-2 text-center">
+                      <ImageOff className="size-5 text-muted-foreground" />
+                      {item.caption && (
+                        <p className="line-clamp-2 text-[10px] text-muted-foreground">
+                          {item.caption}
+                        </p>
+                      )}
+                    </div>
                   )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">
-                    {item.caption || "Без підпису"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {new Date(item.createdAt).toLocaleDateString("uk-UA")}
-                  </p>
-                </div>
-                {selectingId === item.id ? (
-                  <Loader2 className="size-4 shrink-0 animate-spin text-muted-foreground" />
-                ) : (
-                  <ChevronRight className="size-4 shrink-0 text-muted-foreground" />
-                )}
-              </button>
-            ))}
-          </div>
+
+                  {selectingId === item.id && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-background/70">
+                      <Loader2 className="size-5 animate-spin" />
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </>
         )}
 
         {state !== "loading" && (

@@ -5,7 +5,10 @@ import {
   buildParticipants,
   filterParticipants,
   computeFilterStats,
+  computeDisplayStats,
   getUsernameSuggestions,
+  looksEligible,
+  visibleReasons,
 } from "@/lib/giveaway/filters";
 import { DEFAULT_SETTINGS } from "@/lib/giveaway/store";
 import type { InstagramComment } from "@/types/giveaway";
@@ -211,6 +214,55 @@ describe("computeFilterStats", () => {
     expect(stats.uniqueParticipants).toBe(2);
     expect(stats.eligibleParticipants).toBe(1);
     expect(stats.excludedParticipants).toBe(1);
+  });
+});
+
+describe("private can-win/cannot-win lists never show as such", () => {
+  it("visibleReasons hides the private-list reasons but keeps public ones", () => {
+    expect(visibleReasons(["Excluded username"])).toEqual([]);
+    expect(visibleReasons(["Not in allowed list"])).toEqual([]);
+    expect(visibleReasons(["Keyword missing"])).toEqual(["Keyword missing"]);
+    expect(visibleReasons(["Excluded username", "Keyword missing"])).toEqual([
+      "Keyword missing",
+    ]);
+  });
+
+  it("looksEligible is true for someone excluded only by a private list", () => {
+    const participants = buildParticipants([comment({ username: "john" })]);
+    const results = filterParticipants(participants, {
+      ...DEFAULT_SETTINGS,
+      excludedUsernames: ["john"],
+    });
+    expect(results[0].eligible).toBe(false); // truly excluded from the draw
+    expect(looksEligible(results[0])).toBe(true); // but looks fine on screen
+  });
+
+  it("looksEligible is false when a public reason also applies", () => {
+    const participants = buildParticipants([
+      comment({ username: "john", text: "no keyword here" }),
+    ]);
+    const results = filterParticipants(participants, {
+      ...DEFAULT_SETTINGS,
+      excludedUsernames: ["john"],
+      keywordEnabled: true,
+      keyword: "giveaway",
+    });
+    expect(looksEligible(results[0])).toBe(false);
+  });
+
+  it("computeDisplayStats counts private-list exclusions as eligible", () => {
+    const participants = buildParticipants([
+      comment({ username: "a" }),
+      comment({ username: "b" }),
+    ]);
+    const results = filterParticipants(participants, {
+      ...DEFAULT_SETTINGS,
+      excludedUsernames: ["a"],
+    });
+    const trueStats = computeFilterStats(2, results);
+    const displayStats = computeDisplayStats(2, results);
+    expect(trueStats.eligibleParticipants).toBe(1);
+    expect(displayStats.eligibleParticipants).toBe(2);
   });
 });
 

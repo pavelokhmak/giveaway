@@ -216,11 +216,60 @@ export function getUsernameSuggestions(comments: InstagramComment[]): string[] {
   return Array.from(seen.values()).sort((a, b) => a.localeCompare(b));
 }
 
+/**
+ * The "can win" / "cannot win" lists are private to the organizer (only
+ * ever visible on the settings screen). Everywhere else — the
+ * participant list, stats, and the draw animation — should look exactly
+ * as if those lists didn't exist, so the filtering isn't visible to
+ * anyone glancing at the screen. These two reasons are the only ones
+ * that come from those private lists; every other reason (keyword,
+ * mention, comment length, previous winner) reflects publicly visible
+ * comment content and stays visible as-is.
+ */
+const PRIVATE_LIST_REASONS: ExclusionReason[] = [
+  "Excluded username",
+  "Not in allowed list",
+];
+
+export function visibleReasons(reasons: ExclusionReason[]): ExclusionReason[] {
+  return reasons.filter((r) => !PRIVATE_LIST_REASONS.includes(r));
+}
+
+/**
+ * Whether a participant should *look* eligible in the UI — true
+ * eligibility minus the private can/cannot-win lists. A participant can
+ * be "looksEligible" but not truly `eligible` (and therefore never
+ * actually win), which is the point.
+ */
+export function looksEligible(result: EligibilityResult): boolean {
+  return visibleReasons(result.reasons).length === 0;
+}
+
 export function computeFilterStats(
   totalComments: number,
   results: EligibilityResult[],
 ): FilterStats {
   const eligibleParticipants = results.filter((r) => r.eligible).length;
+  return {
+    totalComments,
+    uniqueParticipants: results.length,
+    eligibleParticipants,
+    excludedParticipants: results.length - eligibleParticipants,
+  };
+}
+
+/**
+ * Same shape as computeFilterStats, but counts "looks eligible" instead
+ * of truly eligible — use this for anything shown on screen (stats
+ * cards, results) so the private can/cannot-win lists never change what
+ * the numbers appear to say. Use computeFilterStats (true eligibility)
+ * only for logic that gates the actual draw.
+ */
+export function computeDisplayStats(
+  totalComments: number,
+  results: EligibilityResult[],
+): FilterStats {
+  const eligibleParticipants = results.filter(looksEligible).length;
   return {
     totalComments,
     uniqueParticipants: results.length,
