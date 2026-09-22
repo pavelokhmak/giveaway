@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
 import { AlertCircle, Camera, ImageOff, Loader2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +19,6 @@ import type { InstagramMedia } from "@/lib/instagram/provider";
 type LoadState = "loading" | "ready" | "error";
 
 export function ConnectPicker() {
-  const router = useRouter();
   const loadComments = useGiveawayStore((s) => s.loadComments);
   const setPostUrl = useGiveawayStore((s) => s.setPostUrl);
 
@@ -60,7 +58,10 @@ export function ConnectPicker() {
       const result = await fetchCommentsByMediaId(item.id);
       setPostUrl(item.permalink);
       loadComments(result.comments, result.provider);
-      router.push("/giveaway");
+      // A full navigation instead of router.push: more reliable across
+      // hosting setups than a client-side transition, and the store is
+      // already persisted to sessionStorage so nothing is lost.
+      window.location.assign("/giveaway");
     } catch (err) {
       setSelectingId(null);
       setError(
@@ -79,7 +80,7 @@ export function ConnectPicker() {
       const result = await fetchCommentsByUrl(manualUrl);
       setPostUrl(manualUrl);
       loadComments(result.comments, result.provider);
-      router.push("/giveaway");
+      window.location.assign("/giveaway");
     } catch (err) {
       setSelectingId(null);
       setError(
@@ -92,8 +93,7 @@ export function ConnectPicker() {
 
   const handleLogout = async () => {
     await fetch("/api/auth/instagram/logout", { method: "POST" });
-    router.push("/");
-    router.refresh();
+    window.location.assign("/");
   };
 
   return (

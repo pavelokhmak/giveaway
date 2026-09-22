@@ -44,7 +44,7 @@ export default function GiveawaySettingsPage() {
           variant="ghost"
           size="icon"
           aria-label="Назад"
-          onClick={() => router.push("/giveaway")}
+          onClick={() => { window.location.assign("/giveaway"); }}
         >
           <ArrowLeft className="size-5" />
         </Button>
@@ -63,7 +63,7 @@ export default function GiveawaySettingsPage() {
         <Button
           size="lg"
           className="w-full"
-          onClick={() => router.push("/giveaway")}
+          onClick={() => { window.location.assign("/giveaway"); }}
         >
           <Check className="size-4" />
           Готово

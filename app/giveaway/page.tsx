@@ -91,12 +91,14 @@ export default function GiveawayPage() {
 
   const handleReset = () => {
     reset();
-    router.push("/");
+    // A full navigation, not router.push: more reliable across hosting
+    // setups than a client-side transition.
+    window.location.assign("/");
   };
 
   const handleBackToSettings = () => {
     goToSettings();
-    router.push("/giveaway/settings");
+    window.location.assign("/giveaway/settings");
   };
 
   if (!hydrated || comments.length === 0) {
@@ -107,7 +109,7 @@ export default function GiveawayPage() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-background px-4 py-3">
         <button
-          onClick={() => router.push("/")}
+          onClick={() => { window.location.assign("/"); }}
           className="flex items-center gap-2 text-sm font-semibold"
         >
           <Gift className="size-5 text-primary" />
@@ -119,7 +121,7 @@ export default function GiveawayPage() {
               variant="ghost"
               size="icon"
               aria-label="Налаштування"
-              onClick={() => router.push("/giveaway/settings")}
+              onClick={() => { window.location.assign("/giveaway/settings"); }}
             >
               <Settings2 className="size-5" />
             </Button>
