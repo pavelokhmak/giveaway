@@ -3,7 +3,7 @@
 import * as React from "react";
 import confetti from "canvas-confetti";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
-import { ArrowRight, Volume2, VolumeX } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -12,10 +12,9 @@ import {
   drawWinners,
   InsufficientParticipantsError,
 } from "@/lib/giveaway/random";
-import { playChime, playTick } from "@/lib/giveaway/sound";
 import type { EligibilityResult, GiveawaySettings, Winner } from "@/types/giveaway";
 
-type Stage = "shuffling" | "reveal-winners" | "reveal-backups" | "done";
+type Phase = "shuffling" | "revealed" | "backups";
 
 interface WinnerDrawProps {
   eligible: EligibilityResult[];
@@ -54,31 +53,24 @@ export function WinnerDraw({
   const prefersReducedMotion = useReducedMotion();
 
   const [error, setError] = React.useState<string | null>(null);
-  const [stage, setStage] = React.useState<Stage>("shuffling");
-  const [cyclingName, setCyclingName] = React.useState("");
   const [result, setResult] = React.useState<{
     winners: Winner[];
     backups: Winner[];
   } | null>(null);
-  const [revealCount, setRevealCount] = React.useState(0);
-  const [soundOn, setSoundOn] = React.useState(true);
+  const [revealIndex, setRevealIndex] = React.useState(0);
+  const [phase, setPhase] = React.useState<Phase>("shuffling");
+  const [cyclingName, setCyclingName] = React.useState("");
 
-  const soundOnRef = React.useRef(soundOn);
-  React.useEffect(() => {
-    soundOnRef.current = soundOn;
-  }, [soundOn]);
-
+  // Compute the draw once, deferred so no setState happens synchronously
+  // within the effect body itself.
   React.useEffect(() => {
     let cancelled = false;
-    let timeoutId: ReturnType<typeof setTimeout> | undefined;
-
-    function begin() {
-      let drawn: { winners: Winner[]; backups: Winner[] };
-
+    const timeoutId = setTimeout(() => {
+      if (cancelled) return;
       try {
-        drawn = drawWinners(eligible, settings.winnerCount, settings.backupCount);
+        const drawn = drawWinners(eligible, settings.winnerCount, settings.backupCount);
+        setResult(drawn);
       } catch (err) {
-        if (cancelled) return;
         if (err instanceof InsufficientParticipantsError) {
           setError(
             `Потрібно ${err.needed} переможців і запасних, але відповідають умовам лише ${err.available} учасників. Зменшіть кількість або послабте фільтри.`,
@@ -86,49 +78,57 @@ export function WinnerDraw({
         } else {
           setError("Під час розіграшу сталася помилка.");
         }
+      }
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Runs the shuffling animation every time `phase` becomes "shuffling" —
+  // i.e. for every winner, not just the first.
+  React.useEffect(() => {
+    if (!result || phase !== "shuffling") return;
+
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    const names = displayNames.length > 0 ? displayNames : eligible.map((e) => e.username);
+    const duration = prefersReducedMotion ? 300 : SHUFFLE_DURATION_MS;
+    const start = Date.now();
+
+    function tick() {
+      if (cancelled) return;
+      const elapsed = Date.now() - start;
+      const progress = Math.min(1, elapsed / duration);
+
+      if (progress >= 1) {
+        setPhase("revealed");
         return;
       }
 
-      const names = displayNames.length > 0 ? displayNames : eligible.map((e) => e.username);
-      const duration = prefersReducedMotion ? 300 : SHUFFLE_DURATION_MS;
-      const start = Date.now();
+      setCyclingName(names[Math.floor(Math.random() * names.length)] ?? "");
 
-      function tick() {
-        if (cancelled) return;
-        const elapsed = Date.now() - start;
-        const progress = Math.min(1, elapsed / duration);
-
-        if (progress >= 1) {
-          setResult(drawn);
-          setStage("reveal-winners");
-          return;
-        }
-
-        setCyclingName(names[Math.floor(Math.random() * names.length)] ?? "");
-        if (soundOnRef.current) playTick();
-
-        const delay = 55 + progress * progress * 180;
-        timeoutId = setTimeout(tick, delay);
-      }
-
-      tick();
+      const delay = 55 + progress * progress * 180;
+      timeoutId = setTimeout(tick, delay);
     }
 
-    timeoutId = setTimeout(begin, 0);
+    timeoutId = setTimeout(tick, 0);
 
     return () => {
       cancelled = true;
       if (timeoutId) clearTimeout(timeoutId);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [result, phase, displayNames, eligible, prefersReducedMotion]);
 
   React.useEffect(() => {
-    if (stage === "reveal-winners" && result && result.winners.length > 0) {
+    if (phase === "revealed") {
       fireConfetti();
-      if (soundOn) playChime();
     }
-  }, [stage, result, revealCount, soundOn]);
+  }, [phase, revealIndex]);
 
   if (error) {
     return (
@@ -142,11 +142,11 @@ export function WinnerDraw({
     );
   }
 
-  if (stage === "shuffling" || !result) {
+  if (phase === "shuffling") {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 py-16 text-center">
         <p className="text-sm font-semibold tracking-[0.3em] text-muted-foreground">
-          ЖЕРЕБКУВАННЯ…
+          ОБИРАЄМО ПЕРЕМОЖЦЯ…
         </p>
         <motion.p
           key={cyclingName}
@@ -161,15 +161,20 @@ export function WinnerDraw({
     );
   }
 
-  const currentWinner = result.winners[revealCount];
-  const allWinnersRevealed = revealCount >= result.winners.length;
+  if (!result) return null;
+
+  const currentWinner = result.winners[revealIndex];
+  const isLastWinner = revealIndex + 1 >= result.winners.length;
 
   const handleNext = () => {
-    setRevealCount((c) => c + 1);
-  };
-
-  const handleShowBackups = () => {
-    setStage("reveal-backups");
+    if (!isLastWinner) {
+      setRevealIndex((i) => i + 1);
+      setPhase("shuffling");
+    } else if (result.backups.length > 0) {
+      setPhase("backups");
+    } else {
+      onComplete(result.winners, result.backups);
+    }
   };
 
   const handleFinish = () => {
@@ -178,21 +183,10 @@ export function WinnerDraw({
 
   return (
     <div className="mx-auto max-w-md space-y-6 py-10">
-      <div className="flex justify-end">
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={soundOn ? "Вимкнути звук" : "Увімкнути звук"}
-          onClick={() => setSoundOn((s) => !s)}
-        >
-          {soundOn ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-        </Button>
-      </div>
-
       <AnimatePresence mode="wait">
-        {stage === "reveal-winners" && !allWinnersRevealed && currentWinner && (
+        {phase === "revealed" && currentWinner && (
           <motion.div
-            key={currentWinner.username}
+            key={`${revealIndex}-${currentWinner.username}`}
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0, filter: "blur(6px)" }}
@@ -201,7 +195,7 @@ export function WinnerDraw({
             <p className="text-2xl font-bold">🎉 ПЕРЕМОЖЕЦЬ</p>
             <WinnerCard winner={currentWinner} settings={settings} />
             <Button size="lg" onClick={handleNext}>
-              {revealCount + 1 < result.winners.length
+              {!isLastWinner
                 ? "Наступний переможець"
                 : result.backups.length > 0
                   ? "Далі"
@@ -211,36 +205,7 @@ export function WinnerDraw({
           </motion.div>
         )}
 
-        {stage === "reveal-winners" && allWinnersRevealed && (
-          <motion.div
-            key="all-winners"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="space-y-6"
-          >
-            <h2 className="text-center text-xl font-semibold">Усіх переможців оголошено 🎉</h2>
-            <div className="space-y-3">
-              {result.winners.map((w) => (
-                <WinnerCard key={w.username} winner={w} settings={settings} compact />
-              ))}
-            </div>
-            <div className="flex justify-center">
-              {result.backups.length > 0 ? (
-                <Button size="lg" onClick={handleShowBackups}>
-                  Показати запасних переможців
-                  <ArrowRight className="size-4" />
-                </Button>
-              ) : (
-                <Button size="lg" onClick={handleFinish}>
-                  Переглянути результати
-                  <ArrowRight className="size-4" />
-                </Button>
-              )}
-            </div>
-          </motion.div>
-        )}
-
-        {stage === "reveal-backups" && (
+        {phase === "backups" && (
           <motion.div
             key="backups"
             initial={{ opacity: 0 }}

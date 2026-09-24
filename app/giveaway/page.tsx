@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Gift, Settings2 } from "lucide-react";
+import { Gift, Settings } from "lucide-react";
 
 import { useGiveawayStore, useGiveawayStoreHydrated } from "@/lib/giveaway/store";
 import {
@@ -122,7 +122,7 @@ export default function GiveawayPage() {
               aria-label="Налаштування"
               onClick={() => { window.location.assign("/giveaway/settings"); }}
             >
-              <Settings2 className="size-5" />
+              <Settings className="size-5" />
             </Button>
           )}
           <ThemeToggle />

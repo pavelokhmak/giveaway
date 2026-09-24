@@ -20,12 +20,13 @@ not a bug.
   there isn't one.
 - `/giveaway` — the organizer's main screen: two numbers (comment count,
   how many pass the current rules) and a searchable/filterable participant
-  list. A settings icon in the header opens `/giveaway/settings`; a sticky
+  list. A gear icon in the header opens `/giveaway/settings`; a sticky
   bottom button starts the draw.
-- `/giveaway/settings` — a separate screen for winner/backup counts, entry
-  mode, keyword/mention rules, and the "can win" / "cannot win" username
-  lists. Nothing here is shown anywhere public — it's only visible to
-  whoever has the phone.
+- `/giveaway/settings` — a separate screen for the winner count, entry
+  mode, keyword/mention rules, and the "will definitely win" / "will
+  definitely not win" username lists. Nothing here is shown anywhere
+  public — it's only visible to whoever has the phone. Selecting a post
+  in `/connect` lands here directly, skipping the participant list.
 - Draw, reveal, and results happen on `/giveaway` too, replacing the
   participant list for those phases.
 
@@ -35,16 +36,18 @@ not a bug.
   Instagram") is required; there's no demo/fake-data fallback anymore.
   Meta's API only ever returns comments for posts the logged-in account
   itself owns (see **Limitations**).
-- Configurable entry rules: winner/backup counts (including a **custom**
-  value via the "Інше" option — typing your own number always works, not
-  just the presets), required keyword (contains/exact), required mentions
-  with a minimum count, excluding previous session winners, minimum
-  comment length.
-- **"Можуть виграти" / "Не можуть виграти"** (can win / cannot win)
-  username lists with autocomplete: type a few letters and pick from
-  usernames seen in the imported comments, or add any name freeform. The
-  "can win" list is a strict allow-list — if it's non-empty, only those
-  people are eligible. Both lists live only in `/giveaway/settings`.
+- Configurable entry rules: winner count (including a **custom** value via
+  the "Інше" option — typing your own number always works, not just the
+  presets), a required keyword (default "Мені пощастить", always matched
+  as a substring), required mentions with a minimum count, minimum
+  comment length. Winners are drawn with zero backups by default — reject
+  a winner and there's simply one fewer winner, no automatic replacement.
+- **"Виграють точно" / "Не виграють точно"** (will definitely win / will
+  definitely not win) username lists with autocomplete: type a few
+  letters and pick from usernames seen in the imported comments, or add
+  any name freeform. The "will win" list is a strict allow-list — if it's
+  non-empty, only those people are eligible. Both lists live only in
+  `/giveaway/settings`.
 - Three entry modes (`EntryMode` in `types/giveaway.ts`), picked in
   Налаштування розіграшу → Голоси:
   - **Один голос на людину** ("unique") — one entry per person.
@@ -63,14 +66,15 @@ not a bug.
 - Cryptographically secure winner selection (`crypto.getRandomValues` with
   rejection sampling + an unbiased Fisher–Yates shuffle) — never
   `Math.random()`.
-- Animated draw: a shuffling "drawing…" screen, winners revealed one at a
-  time with confetti, then backup winners. Respects
-  `prefers-reduced-motion` and has a sound on/off toggle.
-- Reject a winner post-draw and the next backup is automatically promoted.
+- Animated draw: a shuffling "picking a winner…" screen replays before
+  *each* winner is revealed (not just the first), with confetti on
+  reveal. Respects `prefers-reduced-motion`.
+- Reject a winner post-draw and the next backup is automatically
+  promoted (if backups were drawn).
 - Export participants or winners as CSV, copy a results summary to the
   clipboard.
-- Light/dark theme, built mobile-first (this is meant to be used on a
-  phone, not a desktop admin panel).
+- Dark theme by default, built mobile-first (this is meant to be used on
+  a phone, not a desktop admin panel).
 
 ## Getting started
 

@@ -21,7 +21,6 @@ import { Separator } from "@/components/ui/separator";
 import type { EntryMode, GiveawaySettings } from "@/types/giveaway";
 
 const WINNER_COUNT_PRESETS = [1, 2, 3, 5, 10];
-const BACKUP_COUNT_PRESETS = [0, 1, 2, 3, 5];
 
 const ENTRY_MODE_OPTIONS: Array<{
   value: EntryMode;
@@ -113,22 +112,13 @@ export function GiveawaySettingsPanel({
 }: GiveawaySettingsPanelProps) {
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 gap-4">
-        <CountField
-          label="Кількість переможців"
-          presets={WINNER_COUNT_PRESETS}
-          value={settings.winnerCount}
-          min={1}
-          onChange={(winnerCount) => onChange({ winnerCount })}
-        />
-        <CountField
-          label="Запасні переможці"
-          presets={BACKUP_COUNT_PRESETS}
-          value={settings.backupCount}
-          min={0}
-          onChange={(backupCount) => onChange({ backupCount })}
-        />
-      </div>
+      <CountField
+        label="Кількість переможців"
+        presets={WINNER_COUNT_PRESETS}
+        value={settings.winnerCount}
+        min={1}
+        onChange={(winnerCount) => onChange({ winnerCount })}
+      />
 
       <Separator />
 
@@ -168,35 +158,14 @@ export function GiveawaySettingsPanel({
           />
         </label>
         {settings.keywordEnabled && (
-          <div className="space-y-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="keyword">Ключове слово</Label>
-              <Input
-                id="keyword"
-                value={settings.keyword}
-                onChange={(e) => onChange({ keyword: e.target.value })}
-                placeholder="РОЗІГРАШ"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Режим</Label>
-              <Select
-                value={settings.keywordMode}
-                onValueChange={(value) =>
-                  onChange({
-                    keywordMode: value as GiveawaySettings["keywordMode"],
-                  })
-                }
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="contains">Містить</SelectItem>
-                  <SelectItem value="exact">Точний збіг</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="keyword">Ключове слово</Label>
+            <Input
+              id="keyword"
+              value={settings.keyword}
+              onChange={(e) => onChange({ keyword: e.target.value })}
+              placeholder="Мені пощастить"
+            />
           </div>
         )}
       </div>
@@ -241,7 +210,7 @@ export function GiveawaySettingsPanel({
 
       <div className="space-y-4">
         <UsernamePicker
-          label="Можуть виграти"
+          label="Виграють точно"
           placeholder="Почніть вводити нікнейм…"
           value={settings.includedUsernames}
           onChange={(includedUsernames) => onChange({ includedUsernames })}
@@ -252,7 +221,7 @@ export function GiveawaySettingsPanel({
         </p>
 
         <UsernamePicker
-          label="Не можуть виграти"
+          label="Не виграють точно"
           placeholder="Почніть вводити нікнейм…"
           value={settings.excludedUsernames}
           onChange={(excludedUsernames) => onChange({ excludedUsernames })}

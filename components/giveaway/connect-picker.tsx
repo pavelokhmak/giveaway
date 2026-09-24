@@ -5,6 +5,7 @@ import { AlertCircle, Camera, ImageOff, Loader2, LogOut } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { ThemeToggle } from "@/components/theme-toggle";
 import {
@@ -27,6 +28,7 @@ export function ConnectPicker() {
   const [media, setMedia] = React.useState<InstagramMedia[]>([]);
   const [error, setError] = React.useState<string | null>(null);
   const [selectingId, setSelectingId] = React.useState<string | null>(null);
+  const [progress, setProgress] = React.useState(0);
   const [manualUrl, setManualUrl] = React.useState("");
   const [showManual, setShowManual] = React.useState(false);
 
@@ -60,23 +62,41 @@ export function ConnectPicker() {
       );
       return;
     }
+    setProgress(100);
     // A full navigation instead of router.push: more reliable across
     // hosting setups than a client-side transition. A tiny delay before
     // navigating gives the just-written sessionStorage a moment to
     // settle before the page unloads.
-    setTimeout(() => window.location.assign("/giveaway"), 30);
+    setTimeout(() => window.location.assign("/giveaway/settings"), 250);
+  };
+
+  const runLoad = async (load: () => Promise<{ comments: InstagramComment[]; provider: "meta" }>, postUrl: string) => {
+    setError(null);
+    setProgress(0);
+
+    const interval = setInterval(() => {
+      setProgress((p) => (p < 90 ? p + Math.random() * 12 : p));
+    }, 180);
+
+    try {
+      const result = await load();
+      clearInterval(interval);
+      setPostUrl(postUrl);
+      loadComments(result.comments, result.provider);
+      goToGiveaway(result.comments);
+    } catch (err) {
+      clearInterval(interval);
+      setSelectingId(null);
+      setProgress(0);
+      throw err;
+    }
   };
 
   const handlePick = async (item: InstagramMedia) => {
     setSelectingId(item.id);
-    setError(null);
     try {
-      const result = await fetchCommentsByMediaId(item.id);
-      setPostUrl(item.permalink);
-      loadComments(result.comments, result.provider);
-      goToGiveaway(result.comments);
+      await runLoad(() => fetchCommentsByMediaId(item.id), item.permalink);
     } catch (err) {
-      setSelectingId(null);
       setError(
         err instanceof FetchCommentsError
           ? err.message
@@ -88,14 +108,9 @@ export function ConnectPicker() {
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSelectingId("manual");
-    setError(null);
     try {
-      const result = await fetchCommentsByUrl(manualUrl);
-      setPostUrl(manualUrl);
-      loadComments(result.comments, result.provider);
-      goToGiveaway(result.comments);
+      await runLoad(() => fetchCommentsByUrl(manualUrl), manualUrl);
     } catch (err) {
-      setSelectingId(null);
       setError(
         err instanceof FetchCommentsError
           ? err.message
@@ -108,6 +123,19 @@ export function ConnectPicker() {
     await fetch("/api/auth/instagram/logout", { method: "POST" });
     window.location.assign("/");
   };
+
+  if (selectingId !== null) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4 text-center">
+        <Loader2 className="size-8 animate-spin text-primary" />
+        <div className="w-full max-w-xs space-y-2">
+          <p className="text-sm font-medium">Завантаження коментарів…</p>
+          <Progress value={progress} className="h-2" />
+          <p className="text-xs text-muted-foreground">{Math.round(progress)}%</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen">
@@ -179,9 +207,8 @@ export function ConnectPicker() {
                 <button
                   key={item.id}
                   type="button"
-                  disabled={selectingId !== null}
                   onClick={() => handlePick(item)}
-                  className="group relative aspect-square overflow-hidden bg-muted disabled:opacity-60"
+                  className="group relative aspect-square overflow-hidden bg-muted"
                 >
                   {item.thumbnailUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -193,12 +220,6 @@ export function ConnectPicker() {
                   ) : (
                     <div className="flex size-full items-center justify-center">
                       <ImageOff className="size-5 text-muted-foreground" />
-                    </div>
-                  )}
-
-                  {selectingId === item.id && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-background/70">
-                      <Loader2 className="size-5 animate-spin" />
                     </div>
                   )}
                 </button>
@@ -236,13 +257,9 @@ export function ConnectPicker() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={selectingId !== null || manualUrl.trim().length === 0}
+                  disabled={manualUrl.trim().length === 0}
                 >
-                  {selectingId === "manual" ? (
-                    <Loader2 className="size-4 animate-spin" />
-                  ) : (
-                    "Завантажити коментарі"
-                  )}
+                  Завантажити коментарі
                 </Button>
               </form>
             )}

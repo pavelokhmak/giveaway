@@ -10,10 +10,10 @@ import type {
 
 export const DEFAULT_SETTINGS: GiveawaySettings = {
   winnerCount: 3,
-  backupCount: 2,
+  backupCount: 0,
   entryMode: "unique",
   keywordEnabled: false,
-  keyword: "GIVEAWAY",
+  keyword: "Мені пощастить",
   keywordMode: "contains",
   requireMention: false,
   minimumMentions: 1,
