@@ -1,9 +1,8 @@
 "use client";
 
 import { motion } from "motion/react";
-import { Check, Trophy, X } from "lucide-react";
+import { Check, Trophy } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import type { GiveawaySettings, Winner } from "@/types/giveaway";
@@ -25,18 +24,10 @@ function conditionLabels(settings: GiveawaySettings): string[] {
 interface WinnerCardProps {
   winner: Winner;
   settings: GiveawaySettings;
-  onReject?: () => void;
-  rejectDisabled?: boolean;
   compact?: boolean;
 }
 
-export function WinnerCard({
-  winner,
-  settings,
-  onReject,
-  rejectDisabled,
-  compact,
-}: WinnerCardProps) {
+export function WinnerCard({ winner, settings, compact }: WinnerCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9, y: 12 }}
@@ -80,19 +71,6 @@ export function WinnerCard({
               </Badge>
             ))}
           </div>
-
-          {onReject && !winner.isBackup && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4 text-destructive hover:text-destructive"
-              onClick={onReject}
-              disabled={rejectDisabled}
-            >
-              <X className="size-3.5" />
-              Відхилити переможця
-            </Button>
-          )}
         </CardContent>
       </Card>
     </motion.div>

@@ -32,7 +32,6 @@ export default function GiveawayPage() {
   const startDraw = useGiveawayStore((s) => s.startDraw);
   const setDrawResult = useGiveawayStore((s) => s.setDrawResult);
   const finishDraw = useGiveawayStore((s) => s.finishDraw);
-  const rejectWinner = useGiveawayStore((s) => s.rejectWinner);
   const goToSettings = useGiveawayStore((s) => s.goToSettings);
   const reset = useGiveawayStore((s) => s.reset);
   const hydrated = useGiveawayStoreHydrated();
@@ -143,9 +142,6 @@ export default function GiveawayPage() {
             winners={winners}
             backups={backups}
             settings={settings}
-            stats={stats}
-            eligibilityResults={eligibilityResults}
-            onReject={rejectWinner}
             onReset={handleReset}
           />
         ) : (

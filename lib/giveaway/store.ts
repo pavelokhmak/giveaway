@@ -36,7 +36,6 @@ interface GiveawayStoreState {
   phase: DrawPhase;
   winners: Winner[];
   backups: Winner[];
-  rejectedWinners: Winner[];
 
   setPostUrl: (url: string) => void;
   loadComments: (
@@ -48,7 +47,6 @@ interface GiveawayStoreState {
   startDraw: () => void;
   setDrawResult: (winners: Winner[], backups: Winner[]) => void;
   finishDraw: () => void;
-  rejectWinner: (username: string) => void;
   reset: () => void;
 }
 
@@ -60,7 +58,7 @@ interface GiveawayStoreState {
  */
 export const useGiveawayStore = create<GiveawayStoreState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       postUrl: "",
       provider: null,
       comments: [],
@@ -68,7 +66,6 @@ export const useGiveawayStore = create<GiveawayStoreState>()(
       phase: "idle",
       winners: [],
       backups: [],
-      rejectedWinners: [],
 
       setPostUrl: (url) => set({ postUrl: url }),
 
@@ -86,38 +83,6 @@ export const useGiveawayStore = create<GiveawayStoreState>()(
 
       finishDraw: () => set({ phase: "results" }),
 
-      rejectWinner: (username) => {
-        const state = get();
-        const rejected = state.winners.find((w) => w.username === username);
-        if (!rejected) return;
-
-        const remainingWinners = state.winners.filter(
-          (w) => w.username !== username,
-        );
-
-        const [replacement, ...restBackups] = state.backups;
-
-        if (replacement) {
-          const promoted: Winner = {
-            ...replacement,
-            position: rejected.position,
-            isBackup: false,
-          };
-          set({
-            winners: [...remainingWinners, promoted].sort(
-              (a, b) => a.position - b.position,
-            ),
-            backups: restBackups.map((b, i) => ({ ...b, position: i + 1 })),
-            rejectedWinners: [...state.rejectedWinners, rejected],
-          });
-        } else {
-          set({
-            winners: remainingWinners,
-            rejectedWinners: [...state.rejectedWinners, rejected],
-          });
-        }
-      },
-
       reset: () =>
         set({
           postUrl: "",
@@ -127,7 +92,6 @@ export const useGiveawayStore = create<GiveawayStoreState>()(
           phase: "idle",
           winners: [],
           backups: [],
-          rejectedWinners: [],
         }),
     }),
     {
