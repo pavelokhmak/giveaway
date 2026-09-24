@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { PartyPopper, RotateCcw } from "lucide-react";
+import { Check, PartyPopper } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { WinnerCard } from "@/components/giveaway/winner-card";
@@ -49,9 +49,9 @@ export function Results({ winners, backups, settings, onReset }: ResultsProps) {
       )}
 
       <div className="flex justify-center">
-        <Button variant="ghost" onClick={onReset}>
-          <RotateCcw className="size-4" />
-          Почати новий розіграш
+        <Button size="lg" onClick={onReset}>
+          <Check className="size-4" />
+          Готово
         </Button>
       </div>
     </div>
