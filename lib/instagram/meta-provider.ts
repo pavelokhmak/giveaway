@@ -17,6 +17,11 @@ interface MetaCommentNode {
   timestamp: string;
   from?: { id?: string; username?: string };
   user?: { id?: string; username?: string };
+  // The comments edge only returns top-level comments; replies to a
+  // comment (someone tagging a friend under another person's comment,
+  // for example) come back nested here when requested as an expandable
+  // field, instead of top-level in `data`.
+  replies?: { data: MetaCommentNode[] };
 }
 
 interface MetaCommentsResponse {
@@ -110,7 +115,8 @@ export class MetaInstagramProvider implements InstagramProvider {
 
     do {
       const params = new URLSearchParams({
-        fields: "id,text,username,timestamp,from,user",
+        fields:
+          "id,text,username,timestamp,from,user,replies{id,text,username,timestamp,from,user}",
         access_token: this.accessToken,
         limit: "50",
       });
@@ -126,14 +132,21 @@ export class MetaInstagramProvider implements InstagramProvider {
       if (page === 0) firstPageRawText = rawText;
       const body = JSON.parse(rawText) as MetaCommentsResponse;
 
+      const toComment = (node: MetaCommentNode): InstagramComment => ({
+        id: node.id,
+        username: node.username ?? node.from?.username ?? node.user?.username ?? "unknown",
+        text: node.text,
+        createdAt: node.timestamp,
+        userId: node.from?.id ?? node.user?.id,
+      });
+
       for (const node of body.data ?? []) {
-        comments.push({
-          id: node.id,
-          username: node.username ?? node.from?.username ?? node.user?.username ?? "unknown",
-          text: node.text,
-          createdAt: node.timestamp,
-          userId: node.from?.id ?? node.user?.id,
-        });
+        comments.push(toComment(node));
+        // Only the first page of replies (up to 25) comes back inline;
+        // that covers the overwhelming majority of giveaway threads.
+        for (const reply of node.replies?.data ?? []) {
+          comments.push(toComment(reply));
+        }
       }
 
       const nextAfter = body.paging?.cursors?.after;
