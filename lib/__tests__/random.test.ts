@@ -3,6 +3,7 @@ import {
   secureRandomInt,
   secureShuffle,
   drawWinners,
+  computeDrawAvailability,
   InsufficientParticipantsError,
 } from "@/lib/giveaway/random";
 import { buildParticipants, filterParticipants } from "@/lib/giveaway/filters";
@@ -126,6 +127,37 @@ describe("drawWinners", () => {
     }
   });
 
+  it("guarantees a manually-added winner even with no matching comment", () => {
+    const eligible = makeEligible(["a", "b", "c"]);
+    const { winners } = drawWinners(eligible, 2, 0, ["nobody-commented"]);
+    expect(winners.map((w) => w.username)).toContain("nobody-commented");
+    expect(winners).toHaveLength(2);
+  });
+
+  it("keeps the guaranteed winner's username exactly as typed, not normalized", () => {
+    const eligible = makeEligible(["a", "b"]);
+    const { winners } = drawWinners(eligible, 1, 0, ["  @Some.Person  "]);
+    expect(winners[0].username).toBe("Some.Person");
+    expect(winners[0].comment).toBeUndefined();
+  });
+
+  it("fills remaining winner slots randomly from the real pool after guaranteed winners", () => {
+    const eligible = makeEligible(["a", "b", "c"]);
+    const { winners } = drawWinners(eligible, 2, 0, ["ghost"]);
+    const real = winners.find((w) => w.username !== "ghost");
+    expect(real).toBeDefined();
+    expect(["a", "b", "c"]).toContain(real!.username);
+  });
+
+  it("never draws a real participant who is also a guaranteed winner a second time", () => {
+    const eligible = makeEligible(["a", "b", "c"]);
+    for (let i = 0; i < 20; i++) {
+      const { winners } = drawWinners(eligible, 3, 0, ["a"]);
+      const usernames = winners.map((w) => w.username.toLowerCase());
+      expect(new Set(usernames).size).toBe(3);
+    }
+  });
+
   it("bases the insufficient-participants check on unique people, not raw tickets", () => {
     const comments: InstagramComment[] = Array.from({ length: 10 }, (_, i) => ({
       id: String(i),
@@ -136,5 +168,22 @@ describe("drawWinners", () => {
     const participants = buildParticipants(comments, "per-comment");
     const eligible = filterParticipants(participants, DEFAULT_SETTINGS);
     expect(() => drawWinners(eligible, 1, 1)).toThrow(InsufficientParticipantsError);
+  });
+});
+
+describe("computeDrawAvailability", () => {
+  it("agrees with drawWinners about whether a draw would succeed", () => {
+    const eligible = makeEligible(["a", "b"]);
+    expect(computeDrawAvailability(eligible, 3, 2)).toBe(false);
+    expect(() => drawWinners(eligible, 3, 2)).toThrow(InsufficientParticipantsError);
+
+    expect(computeDrawAvailability(eligible, 2, 0)).toBe(true);
+    expect(() => drawWinners(eligible, 2, 0)).not.toThrow();
+  });
+
+  it("counts a guaranteed winner toward availability even with a too-small real pool", () => {
+    const eligible = makeEligible(["a"]);
+    expect(computeDrawAvailability(eligible, 2, 0, ["ghost"])).toBe(true);
+    expect(() => drawWinners(eligible, 2, 0, ["ghost"])).not.toThrow();
   });
 });

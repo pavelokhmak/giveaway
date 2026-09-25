@@ -45,9 +45,13 @@ not a bug.
 - **"Виграють точно" / "Не виграють точно"** (will definitely win / will
   definitely not win) username lists with autocomplete: type a few
   letters and pick from usernames seen in the imported comments, or add
-  any name freeform. The "will win" list is a strict allow-list — if it's
-  non-empty, only those people are eligible. Both lists live only in
-  `/giveaway/settings`.
+  any name freeform. "Will definitely win" entries are **guaranteed
+  winners** — forced into the winner list verbatim, in the order added,
+  even if no matching comment exists at all; they fill the first winner
+  slots, and any remaining winner/backup slots are still drawn randomly
+  from the real eligible pool. A name with no matching comment is
+  flagged in the picker so the organizer can tell at a glance. Both
+  lists live only in `/giveaway/settings`.
 - Three entry modes (`EntryMode` in `types/giveaway.ts`), picked in
   Налаштування розіграшу → Голоси:
   - **Один голос на людину** ("unique") — one entry per person.
@@ -69,10 +73,6 @@ not a bug.
 - Animated draw: a shuffling "picking a winner…" screen replays before
   *each* winner is revealed (not just the first), with confetti on
   reveal. Respects `prefers-reduced-motion`.
-- Reject a winner post-draw and the next backup is automatically
-  promoted (if backups were drawn).
-- Export participants or winners as CSV, copy a results summary to the
-  clipboard.
 - Dark theme by default, built mobile-first (this is meant to be used on
   a phone, not a desktop admin panel).
 
@@ -142,14 +142,14 @@ server, etc.), set the environment variables above, and register that
 deployment's own origin as an additional OAuth redirect URI in the Meta
 app. Because giveaway state lives only in the browser tab (the session
 cookie aside), there is no persistence, multi-device sync, or server-side
-audit trail — plan your workflow (e.g. exporting the results CSV)
-accordingly.
+audit trail — note the winners down before closing the tab.
 
 ## Limitations (by design)
 
 - No database — state resets on page reload (except the login session,
-  which persists via cookie for ~60 days).
-- No permanent shareable results URL (see **Copy Results** instead).
+  which persists via cookie for ~60 days), and there's no
+  export/share/copy of results — note the winners down before closing
+  the tab.
 - Comments can only be pulled from posts the **logged-in account itself
   owns** — Meta's API has no way to fetch another account's comments, and
   this app doesn't scrape around that restriction.

@@ -1,3 +1,4 @@
+import { normalizeUsername } from "@/lib/giveaway/filters";
 import type { EligibilityResult, Winner } from "@/types/giveaway";
 
 /**
@@ -67,6 +68,35 @@ export class InsufficientParticipantsError extends Error {
   }
 }
 
+interface GuaranteedWinner {
+  username: string;
+  normalized: string;
+}
+
+/**
+ * Normalizes, deduplicates, and caps the "will definitely win" list at
+ * `winnerCount` entries, in the order they were added — shared by
+ * `drawWinners` and `computeDrawAvailability` so the two never disagree
+ * about who counts as guaranteed.
+ */
+function resolveGuaranteedWinners(
+  guaranteedUsernames: string[],
+  winnerCount: number,
+): GuaranteedWinner[] {
+  const seen = new Set<string>();
+  const result: GuaranteedWinner[] = [];
+  for (const raw of guaranteedUsernames) {
+    if (result.length >= winnerCount) break;
+    const username = raw.trim().replace(/^@/, "");
+    if (!username) continue;
+    const normalized = normalizeUsername(username);
+    if (seen.has(normalized)) continue;
+    seen.add(normalized);
+    result.push({ username, normalized });
+  }
+  return result;
+}
+
 /**
  * Draws winners and backups from the eligible entry pool.
  *
@@ -76,41 +106,62 @@ export class InsufficientParticipantsError extends Error {
  * Regardless of how many tickets someone holds, they can win at most one
  * prize: the shuffle is weighted by ticket count, but once a person's
  * first ticket is drawn, their remaining tickets are skipped.
+ *
+ * `guaranteedUsernames` (the "will definitely win" list) are forced into
+ * the first winner slots verbatim, in the order added — even if no
+ * matching comment exists among the real participants. Any remaining
+ * winner slots, plus all backup slots, are still drawn randomly from the
+ * real eligible pool (guaranteed usernames are removed from that pool
+ * first, so the same person can't also be drawn at random).
  */
 export function drawWinners(
   eligible: EligibilityResult[],
   winnerCount: number,
   backupCount: number,
+  guaranteedUsernames: string[] = [],
 ): DrawWinnersResult {
-  const needed = winnerCount + backupCount;
-  const uniqueParticipantCount = new Set(
-    eligible.map((e) => e.normalizedUsername),
-  ).size;
+  const guaranteed = resolveGuaranteedWinners(guaranteedUsernames, winnerCount);
+  const guaranteedNormalized = new Set(guaranteed.map((g) => g.normalized));
 
-  if (needed > uniqueParticipantCount) {
-    throw new InsufficientParticipantsError(needed, uniqueParticipantCount);
+  const pool = eligible.filter((e) => !guaranteedNormalized.has(e.normalizedUsername));
+  const remainingWinnerSlots = winnerCount - guaranteed.length;
+  const neededFromPool = remainingWinnerSlots + backupCount;
+
+  const uniquePoolCount = new Set(pool.map((e) => e.normalizedUsername)).size;
+
+  if (neededFromPool > uniquePoolCount) {
+    throw new InsufficientParticipantsError(
+      winnerCount + backupCount,
+      uniquePoolCount + guaranteed.length,
+    );
   }
 
-  const shuffled = secureShuffle(eligible);
+  const shuffled = secureShuffle(pool);
 
   const picked: EligibilityResult[] = [];
   const seenUsernames = new Set<string>();
   for (const entry of shuffled) {
-    if (picked.length >= needed) break;
+    if (picked.length >= neededFromPool) break;
     if (seenUsernames.has(entry.normalizedUsername)) continue;
     seenUsernames.add(entry.normalizedUsername);
     picked.push(entry);
   }
 
-  const winners: Winner[] = picked.slice(0, winnerCount).map((p, i) => ({
-    username: p.username,
-    comment: p.participant.comments[0],
+  const guaranteedWinners: Winner[] = guaranteed.map((g, i) => ({
+    username: g.username,
     position: i + 1,
     isBackup: false,
   }));
 
+  const randomWinners: Winner[] = picked.slice(0, remainingWinnerSlots).map((p, i) => ({
+    username: p.username,
+    comment: p.participant.comments[0],
+    position: guaranteed.length + i + 1,
+    isBackup: false,
+  }));
+
   const backups: Winner[] = picked
-    .slice(winnerCount, winnerCount + backupCount)
+    .slice(remainingWinnerSlots, remainingWinnerSlots + backupCount)
     .map((p, i) => ({
       username: p.username,
       comment: p.participant.comments[0],
@@ -118,7 +169,28 @@ export function drawWinners(
       isBackup: true,
     }));
 
-  return { winners, backups };
+  return { winners: [...guaranteedWinners, ...randomWinners], backups };
+}
+
+/**
+ * Whether a draw with these settings would currently succeed — mirrors
+ * `drawWinners`'s guaranteed-winner + pool-size logic without actually
+ * drawing, so the UI can disable the start button and explain why ahead
+ * of time instead of letting the draw throw.
+ */
+export function computeDrawAvailability(
+  eligible: EligibilityResult[],
+  winnerCount: number,
+  backupCount: number,
+  guaranteedUsernames: string[] = [],
+): boolean {
+  const guaranteed = resolveGuaranteedWinners(guaranteedUsernames, winnerCount);
+  const guaranteedNormalized = new Set(guaranteed.map((g) => g.normalized));
+  const pool = eligible.filter((e) => !guaranteedNormalized.has(e.normalizedUsername));
+  const remainingWinnerSlots = winnerCount - guaranteed.length;
+  const neededFromPool = remainingWinnerSlots + backupCount;
+  const uniquePoolCount = new Set(pool.map((e) => e.normalizedUsername)).size;
+  return neededFromPool <= uniquePoolCount;
 }
 
 /**

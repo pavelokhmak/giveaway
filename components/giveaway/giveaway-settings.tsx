@@ -215,9 +215,11 @@ export function GiveawaySettingsPanel({
           value={settings.includedUsernames}
           onChange={(includedUsernames) => onChange({ includedUsernames })}
           suggestions={usernameSuggestions}
+          mode="include"
         />
         <p className="-mt-2 text-xs text-muted-foreground">
-          Якщо тут хтось є, виграти зможуть лише вони. Це бачите тільки ви.
+          Ці нікнейми гарантовано виграють — навіть якщо такого коментаря
+          немає серед завантажених. Це бачите тільки ви.
         </p>
 
         <UsernamePicker
@@ -226,6 +228,7 @@ export function GiveawaySettingsPanel({
           value={settings.excludedUsernames}
           onChange={(excludedUsernames) => onChange({ excludedUsernames })}
           suggestions={usernameSuggestions}
+          mode="exclude"
         />
       </div>
     </div>

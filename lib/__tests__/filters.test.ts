@@ -100,7 +100,7 @@ describe("filterParticipants", () => {
     expect(results[0].reasons).toContain("Excluded username");
   });
 
-  it("only allows usernames on the allow list when it's non-empty", () => {
+  it("includedUsernames (guaranteed winners) doesn't affect eligibility here — that's handled by drawWinners", () => {
     const participants = buildParticipants([
       comment({ username: "john" }),
       comment({ username: "maria" }),
@@ -109,17 +109,7 @@ describe("filterParticipants", () => {
       ...DEFAULT_SETTINGS,
       includedUsernames: ["Maria"],
     });
-    const john = results.find((r) => r.normalizedUsername === "john");
-    const maria = results.find((r) => r.normalizedUsername === "maria");
-    expect(john?.eligible).toBe(false);
-    expect(john?.reasons).toContain("Not in allowed list");
-    expect(maria?.eligible).toBe(true);
-  });
-
-  it("ignores the allow list when it's empty", () => {
-    const participants = buildParticipants([comment({ username: "john" })]);
-    const results = filterParticipants(participants, DEFAULT_SETTINGS);
-    expect(results[0].eligible).toBe(true);
+    expect(results.every((r) => r.eligible)).toBe(true);
   });
 
   it("requires keyword when enabled", () => {
@@ -209,7 +199,6 @@ describe("computeFilterStats", () => {
 describe("private can-win/cannot-win lists never show as such", () => {
   it("visibleReasons hides the private-list reasons but keeps public ones", () => {
     expect(visibleReasons(["Excluded username"])).toEqual([]);
-    expect(visibleReasons(["Not in allowed list"])).toEqual([]);
     expect(visibleReasons(["Keyword missing"])).toEqual(["Keyword missing"]);
     expect(visibleReasons(["Excluded username", "Keyword missing"])).toEqual([
       "Keyword missing",

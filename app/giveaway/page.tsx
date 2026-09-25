@@ -10,7 +10,9 @@ import {
   computeDisplayStats,
   filterParticipants,
   looksEligible,
+  normalizeUsername,
 } from "@/lib/giveaway/filters";
+import { computeDrawAvailability } from "@/lib/giveaway/random";
 import { GiveawayStats } from "@/components/giveaway/giveaway-stats";
 import { ParticipantList } from "@/components/giveaway/participant-list";
 import { WinnerDraw } from "@/components/giveaway/winner-draw";
@@ -62,10 +64,22 @@ export default function GiveawayPage() {
 
   // Names to cycle through in the draw animation — looks the same with
   // or without the private lists applied, so the filtering never shows.
-  const displayNames = React.useMemo(
-    () => eligibilityResults.filter(looksEligible).map((r) => r.username),
-    [eligibilityResults],
-  );
+  // Also includes guaranteed winners so a manually-added name (with no
+  // matching comment) still appears while shuffling instead of only
+  // popping up at the reveal.
+  const displayNames = React.useMemo(() => {
+    const names = eligibilityResults.filter(looksEligible).map((r) => r.username);
+    const seen = new Set(names.map(normalizeUsername));
+    for (const raw of settings.includedUsernames) {
+      const username = raw.trim().replace(/^@/, "");
+      if (!username) continue;
+      const normalized = normalizeUsername(username);
+      if (seen.has(normalized)) continue;
+      seen.add(normalized);
+      names.push(username);
+    }
+    return names;
+  }, [eligibilityResults, settings.includedUsernames]);
 
   // Everything shown on screen (stat cards, results) uses "looks
   // eligible" counts so the private lists never visibly change a number.
@@ -75,7 +89,12 @@ export default function GiveawayPage() {
   );
 
   const needed = settings.winnerCount + settings.backupCount;
-  const notEnoughEligible = needed > eligible.length;
+  const notEnoughEligible = !computeDrawAvailability(
+    eligible,
+    settings.winnerCount,
+    settings.backupCount,
+    settings.includedUsernames,
+  );
 
   const handleStart = () => {
     if (notEnoughEligible) return;

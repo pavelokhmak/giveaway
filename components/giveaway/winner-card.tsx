@@ -13,7 +13,8 @@ const ENTRY_MODE_BADGE: Record<GiveawaySettings["entryMode"], string> = {
   "per-mention": "Голос за відмітками",
 };
 
-function conditionLabels(settings: GiveawaySettings): string[] {
+function conditionLabels(settings: GiveawaySettings, hasComment: boolean): string[] {
+  if (!hasComment) return ["Додано вручну"];
   const labels = ["Пройшов відбір"];
   if (settings.keywordEnabled) labels.push("Ключове слово");
   if (settings.requireMention) labels.push("Відмітка");
@@ -64,7 +65,7 @@ export function WinnerCard({ winner, settings, compact }: WinnerCardProps) {
           )}
 
           <div className="mt-3 flex flex-wrap gap-1.5">
-            {conditionLabels(settings).map((label) => (
+            {conditionLabels(settings, Boolean(winner.comment)).map((label) => (
               <Badge key={label} variant="secondary" className="gap-1 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
                 <Check className="size-3" />
                 {label}

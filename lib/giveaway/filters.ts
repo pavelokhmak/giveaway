@@ -104,19 +104,12 @@ export function filterParticipants(
   const excludedSet = new Set(
     settings.excludedUsernames.map((u) => normalizeUsername(u)),
   );
-  const includedSet = new Set(
-    settings.includedUsernames.map((u) => normalizeUsername(u)),
-  );
 
   return participants.map((participant) => {
     const reasons: ExclusionReason[] = [];
 
     if (excludedSet.has(participant.normalizedUsername)) {
       reasons.push("Excluded username");
-    }
-
-    if (includedSet.size > 0 && !includedSet.has(participant.normalizedUsername)) {
-      reasons.push("Not in allowed list");
     }
 
     const matchingComments = participant.comments.filter((comment) => {
@@ -215,10 +208,7 @@ export function getUsernameSuggestions(comments: InstagramComment[]): string[] {
  * mention, comment length) reflects publicly visible comment content
  * and stays visible as-is.
  */
-const PRIVATE_LIST_REASONS: ExclusionReason[] = [
-  "Excluded username",
-  "Not in allowed list",
-];
+const PRIVATE_LIST_REASONS: ExclusionReason[] = ["Excluded username"];
 
 export function visibleReasons(reasons: ExclusionReason[]): ExclusionReason[] {
   return reasons.filter((r) => !PRIVATE_LIST_REASONS.includes(r));
@@ -272,7 +262,6 @@ const REASON_LABELS_UK: Record<ExclusionReason, string> = {
   "Mention required": "Потрібна відмітка",
   "Not enough mentions": "Замало відміток",
   "Excluded username": "У списку тих, хто не може виграти",
-  "Not in allowed list": "Немає у списку тих, хто може виграти",
   "Comment too short": "Закороткий коментар",
 };
 

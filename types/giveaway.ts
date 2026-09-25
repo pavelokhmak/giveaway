@@ -37,8 +37,11 @@ export interface GiveawaySettings {
   /** Usernames that can never win ("cannot win" list). */
   excludedUsernames: string[];
   /**
-   * If non-empty, only these usernames are eligible ("can win" allow
-   * list) — everyone else is excluded regardless of other settings.
+   * Guaranteed winners ("will definitely win" list) — these usernames
+   * are forced into the winner list verbatim, in the order added, even
+   * if no matching comment exists among the real participants. They
+   * take the first winner slots; any remaining slots (and all backup
+   * slots) are still drawn randomly from the real eligible pool.
    */
   includedUsernames: string[];
   minimumCommentLength?: number;
@@ -49,7 +52,6 @@ export type ExclusionReason =
   | "Mention required"
   | "Not enough mentions"
   | "Excluded username"
-  | "Not in allowed list"
   | "Comment too short";
 
 export interface EligibilityResult {

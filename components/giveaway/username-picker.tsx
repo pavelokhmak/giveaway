@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { AlertTriangle, Plus, X } from "lucide-react";
+import { Plus, Sparkles, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,15 @@ interface UsernamePickerProps {
   value: string[];
   onChange: (next: string[]) => void;
   suggestions: string[];
+  /**
+   * "include" (the "will definitely win" list): a name with no matching
+   * comment is a valid, expected case — it's a guaranteed manual winner
+   * — so it's flagged with a neutral, positive marker rather than a
+   * warning. "exclude" ("will definitely not win"): flagged as a no-op
+   * hint instead, since excluding someone who never commented does
+   * nothing.
+   */
+  mode: "include" | "exclude";
 }
 
 const MAX_SUGGESTIONS = 6;
@@ -23,6 +32,7 @@ export function UsernamePicker({
   value,
   onChange,
   suggestions,
+  mode,
 }: UsernamePickerProps) {
   const [query, setQuery] = React.useState("");
   const [open, setOpen] = React.useState(false);
@@ -73,22 +83,24 @@ export function UsernamePicker({
         <div className="flex flex-wrap gap-1.5">
           {value.map((username) => {
             const notFound = !knownSet.has(normalizeUsername(username));
+            const notFoundTitle =
+              mode === "include"
+                ? "Цього нікнейму немає серед коментарів — переможе гарантовано, вручну"
+                : "Цього нікнейму немає серед коментарів — додавання нічого не змінить";
             return (
               <Badge
                 key={username}
                 variant="secondary"
                 className={
-                  notFound
-                    ? "gap-1 border-amber-500/50 bg-amber-500/10 py-1 pl-2.5 pr-1.5 text-amber-600 dark:text-amber-400"
-                    : "gap-1 py-1 pl-2.5 pr-1.5"
+                  notFound && mode === "include"
+                    ? "gap-1 border-primary/40 bg-primary/10 py-1 pl-2.5 pr-1.5 text-primary"
+                    : notFound
+                      ? "gap-1 py-1 pl-2.5 pr-1.5 text-muted-foreground"
+                      : "gap-1 py-1 pl-2.5 pr-1.5"
                 }
-                title={
-                  notFound
-                    ? "Цей нікнейм не знайдено серед коментарів під постом"
-                    : undefined
-                }
+                title={notFound ? notFoundTitle : undefined}
               >
-                {notFound && <AlertTriangle className="size-3" />}
+                {notFound && mode === "include" && <Sparkles className="size-3" />}
                 @{username}
                 <button
                   type="button"

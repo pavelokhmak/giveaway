@@ -68,7 +68,12 @@ export function WinnerDraw({
     const timeoutId = setTimeout(() => {
       if (cancelled) return;
       try {
-        const drawn = drawWinners(eligible, settings.winnerCount, settings.backupCount);
+        const drawn = drawWinners(
+          eligible,
+          settings.winnerCount,
+          settings.backupCount,
+          settings.includedUsernames,
+        );
         setResult(drawn);
       } catch (err) {
         if (err instanceof InsufficientParticipantsError) {
