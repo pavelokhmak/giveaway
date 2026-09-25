@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Plus, X } from "lucide-react";
+import { AlertTriangle, Plus, X } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -30,6 +30,11 @@ export function UsernamePicker({
   const selectedSet = React.useMemo(
     () => new Set(value.map((v) => normalizeUsername(v))),
     [value],
+  );
+
+  const knownSet = React.useMemo(
+    () => new Set(suggestions.map((s) => normalizeUsername(s))),
+    [suggestions],
   );
 
   const filteredSuggestions = React.useMemo(() => {
@@ -66,19 +71,36 @@ export function UsernamePicker({
 
       {value.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {value.map((username) => (
-            <Badge key={username} variant="secondary" className="gap-1 py-1 pl-2.5 pr-1.5">
-              @{username}
-              <button
-                type="button"
-                aria-label={`Прибрати @${username}`}
-                onClick={() => removeUsername(username)}
-                className="rounded-full p-0.5 hover:bg-foreground/10"
+          {value.map((username) => {
+            const notFound = !knownSet.has(normalizeUsername(username));
+            return (
+              <Badge
+                key={username}
+                variant="secondary"
+                className={
+                  notFound
+                    ? "gap-1 border-amber-500/50 bg-amber-500/10 py-1 pl-2.5 pr-1.5 text-amber-600 dark:text-amber-400"
+                    : "gap-1 py-1 pl-2.5 pr-1.5"
+                }
+                title={
+                  notFound
+                    ? "Цей нікнейм не знайдено серед коментарів під постом"
+                    : undefined
+                }
               >
-                <X className="size-3" />
-              </button>
-            </Badge>
-          ))}
+                {notFound && <AlertTriangle className="size-3" />}
+                @{username}
+                <button
+                  type="button"
+                  aria-label={`Прибрати @${username}`}
+                  onClick={() => removeUsername(username)}
+                  className="rounded-full p-0.5 hover:bg-foreground/10"
+                >
+                  <X className="size-3" />
+                </button>
+              </Badge>
+            );
+          })}
         </div>
       )}
 
